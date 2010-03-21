@@ -107,18 +107,164 @@
 
 static char device_serial[MAX_USB_SERIAL_NUM];
 
+/* Extra MPU speeds */
+#ifndef CONFIG_MACH_SHOLES_CLOCK_STOCK
+#define S1300M  1300000000
+#define S1200M  1200000000
+#define S1100M  1100000000
+#define S1000M  1000000000
+#define S950M   950000000
+#define S900M   900000000
+#define S850M   850000000
+#define S800M   800000000
+#define S750M   750000000
+#define S700M   700000000
+#define S650M   650000000
+#define S450M   450000000
+#define S350M   350000000
+#define S300M   300000000
+#define S200M   200000000
+#endif
+
 static struct omap_opp sholes_mpu_rate_table[] = {
 	{0, 0, 0},
-	/*OPP1*/
+	/* Stock Rate Table */
+#ifdef CONFIG_MACH_SHOLES_CLOCK_STOCK
 	{S125M, VDD1_OPP1, 0x20},
-	/*OPP2*/
 	{S250M, VDD1_OPP2, 0x27},
-	/*OPP3*/
 	{S500M, VDD1_OPP3, 0x32},
-	/*OPP4*/
 	{S550M, VDD1_OPP4, 0x38},
-	/*OPP5*/
 	{S600M, VDD1_OPP5, 0x3E},
+#endif
+	/* Low Voltage MPU Rate Tables */
+#ifdef CONFIG_MACH_SHOLES_CLOCK_600LV
+        {S250M, VDD1_OPP1, 0x27},
+        {S400M, VDD1_OPP2, 0x32},
+        {S500M, VDD1_OPP3, 0x32},
+        {S550M, VDD1_OPP4, 0x38},
+        {S600M, VDD1_OPP5, 0x3E},
+#endif
+#ifdef CONFIG_MACH_SHOLES_CLOCK_800LV
+        {S250M, VDD1_OPP1, 0x27},
+        {S400M, VDD1_OPP2, 0x32},
+        {S550M, VDD1_OPP3, 0x38},
+        {S700M, VDD1_OPP4, 0x3E},
+        {S800M, VDD1_OPP5, 0x3E},
+#endif
+#ifdef CONFIG_MACH_SHOLES_CLOCK_900LV
+        {S250M, VDD1_OPP1, 0x27},
+        {S400M, VDD1_OPP2, 0x32},
+        {S550M, VDD1_OPP3, 0x38},
+        {S750M, VDD1_OPP4, 0x3E},
+        {S900M, VDD1_OPP5, 0x3F},
+#endif
+#ifdef CONFIG_MACH_SHOLES_CLOCK_1000LV
+        {S250M, VDD1_OPP1, 0x27},
+        {S400M, VDD1_OPP2, 0x32},
+        {S600M, VDD1_OPP3, 0x3E},
+        {S800M, VDD1_OPP4, 0x3E},
+        {S1000M, VDD1_OPP5, 0x3F},
+#endif
+#ifdef CONFIG_MACH_SHOLES_CLOCK_1100LV
+        {S250M, VDD1_OPP1, 0x27},
+        {S400M, VDD1_OPP2, 0x32},
+        {S600M, VDD1_OPP3, 0x3E},
+        {S800M, VDD1_OPP4, 0x3E},
+        {S1100M, VDD1_OPP5, 0x50},
+#endif
+#ifdef CONFIG_MACH_SHOLES_CLOCK_1200LV
+        {S250M, VDD1_OPP1, 0x27},
+        {S400M, VDD1_OPP2, 0x32},
+        {S600M, VDD1_OPP3, 0x3E},
+        {S800M, VDD1_OPP4, 0x3E},
+        {S1200M, VDD1_OPP5, 0x62},
+#endif
+#ifdef CONFIG_MACH_SHOLES_CLOCK_1300LV
+        {S250M, VDD1_OPP1, 0x27},
+        {S400M, VDD1_OPP2, 0x32},
+        {S600M, VDD1_OPP3, 0x3E},
+        {S850M, VDD1_OPP4, 0x3E},
+        {S1300M, VDD1_OPP5, 0x62},
+#endif
+	/* Medium Voltage MPU Rate Tables */
+#ifdef CONFIG_MACH_SHOLES_CLOCK_800MV
+        {S250M, VDD1_OPP1, 0x27},
+        {S400M, VDD1_OPP2, 0x32},
+        {S550M, VDD1_OPP3, 0x38},
+        {S700M, VDD1_OPP4, 0x3E},
+        {S800M, VDD1_OPP5, 0x4A},
+#endif
+#ifdef CONFIG_MACH_SHOLES_CLOCK_900MV
+        {S250M, VDD1_OPP1, 0x27},
+        {S400M, VDD1_OPP2, 0x32},
+        {S550M, VDD1_OPP3, 0x38},
+        {S750M, VDD1_OPP4, 0x3E},
+        {S900M, VDD1_OPP5, 0x4A},
+#endif
+#ifdef CONFIG_MACH_SHOLES_CLOCK_1000MV
+        {S250M, VDD1_OPP1, 0x27},
+        {S400M, VDD1_OPP2, 0x32},
+        {S600M, VDD1_OPP3, 0x3E},
+        {S800M, VDD1_OPP4, 0x4A},
+        {S1000M, VDD1_OPP5, 0x50},
+#endif
+#ifdef CONFIG_MACH_SHOLES_CLOCK_1100MV
+        {S250M, VDD1_OPP1, 0x27},
+        {S400M, VDD1_OPP2, 0x32},
+        {S600M, VDD1_OPP3, 0x3E},
+        {S800M, VDD1_OPP4, 0x4A},
+        {S1100M, VDD1_OPP5, 0x62},
+#endif
+#ifdef CONFIG_MACH_SHOLES_CLOCK_1200MV
+        {S250M, VDD1_OPP1, 0x27},
+        {S400M, VDD1_OPP2, 0x32},
+        {S600M, VDD1_OPP3, 0x3E},
+        {S800M, VDD1_OPP4, 0x4A},
+        {S1200M, VDD1_OPP5, 0x62},
+#endif
+#ifdef CONFIG_MACH_SHOLES_CLOCK_1300MV
+        {S250M, VDD1_OPP1, 0x27},
+        {S400M, VDD1_OPP2, 0x32},
+        {S600M, VDD1_OPP3, 0x3E},
+        {S850M, VDD1_OPP4, 0x4A},
+        {S1300M, VDD1_OPP5, 0x62},
+#endif
+	/* High Voltage MPU Rate Tables */
+#ifdef CONFIG_MACH_SHOLES_CLOCK_900HV
+        {S250M, VDD1_OPP1, 0x27},
+        {S400M, VDD1_OPP2, 0x32},
+        {S550M, VDD1_OPP3, 0x38},
+        {S750M, VDD1_OPP4, 0x4A},
+        {S900M, VDD1_OPP5, 0x50},
+#endif
+#ifdef CONFIG_MACH_SHOLES_CLOCK_1000HV
+        {S250M, VDD1_OPP1, 0x27},
+        {S400M, VDD1_OPP2, 0x32},
+        {S600M, VDD1_OPP3, 0x3E},
+        {S800M, VDD1_OPP4, 0x4A},
+        {S1000M, VDD1_OPP5, 0x62},
+#endif
+#ifdef CONFIG_MACH_SHOLES_CLOCK_1100HV
+        {S250M, VDD1_OPP1, 0x27},
+        {S400M, VDD1_OPP2, 0x32},
+        {S600M, VDD1_OPP3, 0x3E},
+        {S800M, VDD1_OPP4, 0x4A},
+        {S1100M, VDD1_OPP5, 0x6E},
+#endif
+#ifdef CONFIG_MACH_SHOLES_CLOCK_1200HV
+        {S250M, VDD1_OPP1, 0x27},
+        {S400M, VDD1_OPP2, 0x32},
+        {S600M, VDD1_OPP3, 0x3E},
+        {S800M, VDD1_OPP4, 0x4A},
+        {S1200M, VDD1_OPP5, 0x6E},
+#endif
+#ifdef CONFIG_MACH_SHOLES_CLOCK_1300HV
+        {S250M, VDD1_OPP1, 0x27},
+        {S400M, VDD1_OPP2, 0x32},
+        {S600M, VDD1_OPP3, 0x3E},
+        {S850M, VDD1_OPP4, 0x4A},
+        {S1300M, VDD1_OPP5, 0x6E},
+#endif
 };
 
 #define S80M 80250000
