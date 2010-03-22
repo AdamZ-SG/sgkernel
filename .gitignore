@@ -39,6 +39,8 @@ Module.symvers
 !.mailmap
 _patches/
 _files/
+_modules/
+move_modules.sh
 
 #
 # Generated include files
