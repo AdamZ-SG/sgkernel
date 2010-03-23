@@ -40,7 +40,9 @@ Module.symvers
 _patches/
 _files/
 _modules/
-move_modules.sh
+mvmods.sh
+mksgti.sh
+mksgimg.sh
 
 #
 # Generated include files
