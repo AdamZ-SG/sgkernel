@@ -313,6 +313,10 @@ config MTD_OOPS
 
 	  To use, add console=ttyMTDx to the kernel command line,
 	  where x is the MTD device number to use.
+ 
+config MTD_HACK_SHOLES
+	tristate "Sholes mtd-hack"
+	depends on MTD && MACH_SHOLES
 
 source "drivers/mtd/chips/Kconfig"
 
