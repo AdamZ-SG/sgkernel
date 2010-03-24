@@ -1,7 +1,7 @@
 #
-# Automatically generated make config: don't edit
+# Config for sgkernel (AdamZ)
 # Linux kernel version: 2.6.29-omap1
-# Mon Jan 11 12:29:41 2010
+# Wed Mar 24 11:58:52 2010
 #
 CONFIG_ARM=y
 CONFIG_SYS_SUPPORTS_APM_EMULATION=y
