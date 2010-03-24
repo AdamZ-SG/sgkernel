@@ -3,8 +3,6 @@ PATCHLEVEL = 6
 SUBLEVEL = 29
 EXTRAVERSION = SmokedGlass
 NAME = Temporary Tasmanian Devil
-ARCH = arm
-CROSS_COMPILE = ~/src/droid/prebuilt/linux-x86/toolchain/arm-eabi-4.4.0/bin/arm-eabi-
 
 # *DOCUMENTATION*
 # To see a list of typical targets execute "make help"

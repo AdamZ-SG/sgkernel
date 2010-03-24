@@ -41,6 +41,7 @@ _patches/
 _files/
 _modules/
 mvmods.sh
+mksgk.sh
 mksgti.sh
 mksgimg.sh
 
