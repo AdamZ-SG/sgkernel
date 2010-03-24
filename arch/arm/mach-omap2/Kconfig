@@ -235,3 +235,10 @@ config MACH_OVERO
 config MACH_OMAP3_PANDORA
 	bool "OMAP3 Pandora"
 	depends on ARCH_OMAP3 && ARCH_OMAP34XX
+
+config PROC_OMAP_PHONE_ID
+        bool "/proc/phoneid support"
+        depends on PROC_FS && ARCH_OMAP34XX
+	default n
+	help
+	  Exports the DIE_ID reg value.

@@ -111,6 +111,7 @@ obj-$(CONFIG_MACH_OMAP3_PANDORA)	+= board-omap3pandora.o \
 # Platform specific device init code
 obj-y								+= usb-musb.o
 obj-$(CONFIG_MACH_OMAP2_TUSB6010)	+= usb-tusb6010.o
+obj-$(CONFIG_PROC_OMAP_PHONE_ID)        += phoneid.o
 
 ifneq ($(CONFIG_USB_EHCI_HCD),)
 	obj-y				+= usb-ehci.o
