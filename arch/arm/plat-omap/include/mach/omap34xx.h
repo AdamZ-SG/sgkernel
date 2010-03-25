@@ -112,6 +112,11 @@
 #define VDD1_OPP3	0x3
 #define VDD1_OPP4	0x4
 #define VDD1_OPP5	0x5
+#if defined(CONFIG_MACH_SHOLES_OPP7)
+#define VDD1_OPP6	0x6
+#define VDD1_OPP7	0x7
+#endif
+
 
 /* VDD2 OPPS */
 #define VDD2_OPP1	0x1
@@ -119,7 +124,12 @@
 #define VDD2_OPP3	0x3
 
 #define MIN_VDD1_OPP	VDD1_OPP1
+#if defined(CONFIG_MACH_SHOLES_OPP5)
 #define MAX_VDD1_OPP	VDD1_OPP5
+#endif
+#if defined(CONFIG_MACH_SHOLES_OPP7)
+#define MAX_VDD1_OPP	VDD1_OPP7
+#endif
 #define MIN_VDD2_OPP	VDD2_OPP1
 #define MAX_VDD2_OPP	VDD2_OPP3
 
