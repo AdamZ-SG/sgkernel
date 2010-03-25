@@ -175,11 +175,11 @@ choice
 	  recommended as it "could" cause your OPP Registry to be overwritten. 
 	  Use "Seven Processor Slots" at your own risk!
 
-	config MACH_SHOLES_OPP5
-		bool "Five Processor Slots
+config MACH_SHOLES_OPP5
+	bool "Five Processor Slots
 
-	config MACH_SHOLES_OPP7
-		bool "Seven Processor Slots"
+config MACH_SHOLES_OPP7
+	bool "Seven Processor Slots"
 
 endchoice
 
@@ -187,63 +187,65 @@ choice
 	prompt "SG Overclocking - Processor Speed/Voltage"
 	default MACH_SHOLES_CLOCK_STOCK
 	depends on MACH_SHOLES && (MACH_SHOLES_OPP5 || MACH_SHOLES_OPP7)
+	help
+	  Choose your Processor Speed and Voltage Range.
 
-	config MACH_SHOLES_CLOCK_STOCK
-		bool "Stock 125-600 MHz"
+config MACH_SHOLES_CLOCK_STOCK
+	bool "Stock 125-600 MHz"
 
-	config MACH_SHOLES_CLOCK_600LMHV
-		bool "Overclock 250-600 MHz - Low/Med/High"
+config MACH_SHOLES_CLOCK_600LMHV
+	bool "Overclock 250-600 MHz - Low/Med/High"
 
-	config MACH_SHOLES_CLOCK_800LV
-		bool "Overclock 250-800 MHz - Low"
+config MACH_SHOLES_CLOCK_800LV
+	bool "Overclock 250-800 MHz - Low"
 
-	config MACH_SHOLES_CLOCK_900LV
-		bool "Overclock 250-900 MHz - Low"
+config MACH_SHOLES_CLOCK_900LV
+	bool "Overclock 250-900 MHz - Low"
 
-	config MACH_SHOLES_CLOCK_1000LV
-		bool "Overclock 250-1000 MHz - Low"
+config MACH_SHOLES_CLOCK_1000LV
+	bool "Overclock 250-1000 MHz - Low"
 
-	config MACH_SHOLES_CLOCK_1100LV
-		bool "Overclock 250-1100 MHz - Low"
+config MACH_SHOLES_CLOCK_1100LV
+	bool "Overclock 250-1100 MHz - Low"
 
-	config MACH_SHOLES_CLOCK_1200LV
-		bool "Overclock 250-1200 MHz - Low"
+config MACH_SHOLES_CLOCK_1200LV
+	bool "Overclock 250-1200 MHz - Low"
 
-	config MACH_SHOLES_CLOCK_1300LV
-		bool "Overclock 250-1300 MHz - Low"
+config MACH_SHOLES_CLOCK_1300LV
+	bool "Overclock 250-1300 MHz - Low"
 
-	config MACH_SHOLES_CLOCK_800MHV
-		bool "Overclock 250-800 MHz - Med/High"
+config MACH_SHOLES_CLOCK_800MHV
+	bool "Overclock 250-800 MHz - Med/High"
 
-	config MACH_SHOLES_CLOCK_900MV
-		bool "Overclock 250-900 MHz - Medium"
+config MACH_SHOLES_CLOCK_900MV
+	bool "Overclock 250-900 MHz - Medium"
 
-	config MACH_SHOLES_CLOCK_1000MV
-		bool "Overclock 250-1000 MHz - Medium"
+config MACH_SHOLES_CLOCK_1000MV
+	bool "Overclock 250-1000 MHz - Medium"
 
-	config MACH_SHOLES_CLOCK_1100MV
-		bool "Overclock 250-1100 MHz - Medium"
+config MACH_SHOLES_CLOCK_1100MV
+	bool "Overclock 250-1100 MHz - Medium"
 
-	config MACH_SHOLES_CLOCK_1200MV
-		bool "Overclock 250-1200 MHz - Medium"
+config MACH_SHOLES_CLOCK_1200MV
+	bool "Overclock 250-1200 MHz - Medium"
 
-	config MACH_SHOLES_CLOCK_1300MV
-		bool "Overclock 250-1300 MHz - Medium"
+config MACH_SHOLES_CLOCK_1300MV
+	bool "Overclock 250-1300 MHz - Medium"
 
-	config MACH_SHOLES_CLOCK_900HV
-		bool "Overclock 250-900 MHz - High"
+config MACH_SHOLES_CLOCK_900HV
+	bool "Overclock 250-900 MHz - High"
 
-	config MACH_SHOLES_CLOCK_1000HV
-		bool "Overclock 250-1000 MHz - High"
+config MACH_SHOLES_CLOCK_1000HV
+	bool "Overclock 250-1000 MHz - High"
 
-	config MACH_SHOLES_CLOCK_1100HV
-		bool "Overclock 250-1100 MHz - High"
+config MACH_SHOLES_CLOCK_1100HV
+	bool "Overclock 250-1100 MHz - High"
 
-	config MACH_SHOLES_CLOCK_1200HV
-		bool "Overclock 250-1200 MHz - High"
+config MACH_SHOLES_CLOCK_1200HV
+	bool "Overclock 250-1200 MHz - High"
 
-	config MACH_SHOLES_CLOCK_1300HV
-		bool "Overclock 250-1300 MHz - High"
+config MACH_SHOLES_CLOCK_1300HV
+	bool "Overclock 250-1300 MHz - High"
 
 endchoice
 
