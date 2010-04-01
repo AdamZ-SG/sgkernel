@@ -139,140 +139,121 @@ static struct omap_opp sholes_mpu_rate_table[] = {
 	{S500M, VDD1_OPP3, 0x32},
 	{S550M, VDD1_OPP4, 0x38},
 	{S600M, VDD1_OPP5, 0x3E},
-#endif
 	/* Normal 5 Slot Settings */
 	/* Low Voltage MPU Rate Tables  -  5 Slots */
-#if defined(CONFIG_MACH_SHOLES_OPP5) && defined(CONFIG_MACH_SHOLES_CLOCK_600LMHV)
+#elif defined(CONFIG_MACH_SHOLES_OPP5) && defined(CONFIG_MACH_SHOLES_CLOCK_600LMHV)
         {S250M, VDD1_OPP1, 0x27},
         {S400M, VDD1_OPP2, 0x32},
         {S500M, VDD1_OPP3, 0x32},
         {S550M, VDD1_OPP4, 0x38},
         {S600M, VDD1_OPP5, 0x3E},
-#endif
-#if defined(CONFIG_MACH_SHOLES_OPP5) && defined(CONFIG_MACH_SHOLES_CLOCK_800LV)
+#elif defined(CONFIG_MACH_SHOLES_OPP5) && defined(CONFIG_MACH_SHOLES_CLOCK_800LV)
         {S250M, VDD1_OPP1, 0x27},
         {S400M, VDD1_OPP2, 0x32},
         {S550M, VDD1_OPP3, 0x38},
         {S700M, VDD1_OPP4, 0x3E},
         {S800M, VDD1_OPP5, 0x3E},
-#endif
-#if defined(CONFIG_MACH_SHOLES_OPP5) && defined(CONFIG_MACH_SHOLES_CLOCK_900LV)
+#elif defined(CONFIG_MACH_SHOLES_OPP5) && defined(CONFIG_MACH_SHOLES_CLOCK_900LV)
         {S250M, VDD1_OPP1, 0x27},
         {S400M, VDD1_OPP2, 0x32},
         {S550M, VDD1_OPP3, 0x38},
         {S750M, VDD1_OPP4, 0x3E},
         {S900M, VDD1_OPP5, 0x3F},
-#endif
-#if defined(CONFIG_MACH_SHOLES_OPP5) && defined(CONFIG_MACH_SHOLES_CLOCK_1000LV)
+#elif defined(CONFIG_MACH_SHOLES_OPP5) && defined(CONFIG_MACH_SHOLES_CLOCK_1000LV)
         {S250M, VDD1_OPP1, 0x27},
         {S400M, VDD1_OPP2, 0x32},
         {S600M, VDD1_OPP3, 0x3E},
         {S800M, VDD1_OPP4, 0x3E},
         {S1000M, VDD1_OPP5, 0x3F},
-#endif
-#if defined(CONFIG_MACH_SHOLES_OPP5) && defined(CONFIG_MACH_SHOLES_CLOCK_1100LV)
+#elif defined(CONFIG_MACH_SHOLES_OPP5) && defined(CONFIG_MACH_SHOLES_CLOCK_1100LV)
         {S250M, VDD1_OPP1, 0x27},
         {S400M, VDD1_OPP2, 0x32},
         {S600M, VDD1_OPP3, 0x3E},
         {S800M, VDD1_OPP4, 0x3E},
         {S1100M, VDD1_OPP5, 0x50},
-#endif
-#if defined(CONFIG_MACH_SHOLES_OPP5) && defined(CONFIG_MACH_SHOLES_CLOCK_1200LV)
+#elif defined(CONFIG_MACH_SHOLES_OPP5) && defined(CONFIG_MACH_SHOLES_CLOCK_1200LV)
         {S250M, VDD1_OPP1, 0x27},
         {S400M, VDD1_OPP2, 0x32},
         {S600M, VDD1_OPP3, 0x3E},
         {S850M, VDD1_OPP4, 0x3E},
         {S1200M, VDD1_OPP5, 0x62},
-#endif
-#if defined(CONFIG_MACH_SHOLES_OPP5) && defined(CONFIG_MACH_SHOLES_CLOCK_1300LV)
+#elif defined(CONFIG_MACH_SHOLES_OPP5) && defined(CONFIG_MACH_SHOLES_CLOCK_1300LV)
         {S250M, VDD1_OPP1, 0x27},
         {S400M, VDD1_OPP2, 0x32},
         {S600M, VDD1_OPP3, 0x3E},
         {S900M, VDD1_OPP4, 0x3E},
         {S1300M, VDD1_OPP5, 0x62},
-#endif
 	/* Medium Voltage MPU Rate Tables  -  5 Slots */
-#if defined(CONFIG_MACH_SHOLES_OPP5) && defined(CONFIG_MACH_SHOLES_CLOCK_800MHV)
+#elif defined(CONFIG_MACH_SHOLES_OPP5) && defined(CONFIG_MACH_SHOLES_CLOCK_800MHV)
         {S250M, VDD1_OPP1, 0x27},
         {S400M, VDD1_OPP2, 0x32},
         {S550M, VDD1_OPP3, 0x38},
         {S700M, VDD1_OPP4, 0x3E},
         {S800M, VDD1_OPP5, 0x4A},
-#endif
-#if defined(CONFIG_MACH_SHOLES_OPP5) && defined(CONFIG_MACH_SHOLES_CLOCK_900MV)
+#elif defined(CONFIG_MACH_SHOLES_OPP5) && defined(CONFIG_MACH_SHOLES_CLOCK_900MV)
         {S250M, VDD1_OPP1, 0x27},
         {S400M, VDD1_OPP2, 0x32},
         {S550M, VDD1_OPP3, 0x38},
         {S750M, VDD1_OPP4, 0x3E},
         {S900M, VDD1_OPP5, 0x4A},
-#endif
-#if defined(CONFIG_MACH_SHOLES_OPP5) && defined(CONFIG_MACH_SHOLES_CLOCK_1000MV)
+#elif defined(CONFIG_MACH_SHOLES_OPP5) && defined(CONFIG_MACH_SHOLES_CLOCK_1000MV)
         {S250M, VDD1_OPP1, 0x27},
         {S400M, VDD1_OPP2, 0x32},
         {S600M, VDD1_OPP3, 0x3E},
         {S800M, VDD1_OPP4, 0x4A},
         {S1000M, VDD1_OPP5, 0x50},
-#endif
-#if defined(CONFIG_MACH_SHOLES_OPP5) && defined(CONFIG_MACH_SHOLES_CLOCK_1100MV)
+#elif defined(CONFIG_MACH_SHOLES_OPP5) && defined(CONFIG_MACH_SHOLES_CLOCK_1100MV)
         {S250M, VDD1_OPP1, 0x27},
         {S400M, VDD1_OPP2, 0x32},
         {S600M, VDD1_OPP3, 0x3E},
         {S800M, VDD1_OPP4, 0x4A},
         {S1100M, VDD1_OPP5, 0x62},
-#endif
-#if defined(CONFIG_MACH_SHOLES_OPP5) && defined(CONFIG_MACH_SHOLES_CLOCK_1200MV)
+#elif defined(CONFIG_MACH_SHOLES_OPP5) && defined(CONFIG_MACH_SHOLES_CLOCK_1200MV)
         {S250M, VDD1_OPP1, 0x27},
         {S400M, VDD1_OPP2, 0x32},
         {S600M, VDD1_OPP3, 0x3E},
         {S850M, VDD1_OPP4, 0x4A},
         {S1200M, VDD1_OPP5, 0x62},
-#endif
-#if defined(CONFIG_MACH_SHOLES_OPP5) && defined(CONFIG_MACH_SHOLES_CLOCK_1300MV)
+#elif defined(CONFIG_MACH_SHOLES_OPP5) && defined(CONFIG_MACH_SHOLES_CLOCK_1300MV)
         {S250M, VDD1_OPP1, 0x27},
         {S400M, VDD1_OPP2, 0x32},
         {S600M, VDD1_OPP3, 0x3E},
         {S9000M, VDD1_OPP4, 0x4A},
         {S1300M, VDD1_OPP5, 0x62},
-#endif
 	/* High Voltage MPU Rate Tables  -  5 Slots */
-#if defined(CONFIG_MACH_SHOLES_OPP5) && defined(CONFIG_MACH_SHOLES_CLOCK_900HV)
+#elif defined(CONFIG_MACH_SHOLES_OPP5) && defined(CONFIG_MACH_SHOLES_CLOCK_900HV)
         {S250M, VDD1_OPP1, 0x27},
         {S400M, VDD1_OPP2, 0x32},
         {S550M, VDD1_OPP3, 0x38},
         {S750M, VDD1_OPP4, 0x4A},
         {S900M, VDD1_OPP5, 0x50},
-#endif
-#if defined(CONFIG_MACH_SHOLES_OPP5) && defined(CONFIG_MACH_SHOLES_CLOCK_1000HV)
+#elif defined(CONFIG_MACH_SHOLES_OPP5) && defined(CONFIG_MACH_SHOLES_CLOCK_1000HV)
         {S250M, VDD1_OPP1, 0x27},
         {S400M, VDD1_OPP2, 0x32},
         {S600M, VDD1_OPP3, 0x3E},
         {S800M, VDD1_OPP4, 0x4A},
         {S1000M, VDD1_OPP5, 0x62},
-#endif
-#if defined(CONFIG_MACH_SHOLES_OPP5) && defined(CONFIG_MACH_SHOLES_CLOCK_1100HV)
+#elif defined(CONFIG_MACH_SHOLES_OPP5) && defined(CONFIG_MACH_SHOLES_CLOCK_1100HV)
         {S250M, VDD1_OPP1, 0x27},
         {S400M, VDD1_OPP2, 0x32},
         {S600M, VDD1_OPP3, 0x3E},
         {S800M, VDD1_OPP4, 0x4A},
         {S1100M, VDD1_OPP5, 0x6E},
-#endif
-#if defined(CONFIG_MACH_SHOLES_OPP5) && defined(CONFIG_MACH_SHOLES_CLOCK_1200HV)
+#elif defined(CONFIG_MACH_SHOLES_OPP5) && defined(CONFIG_MACH_SHOLES_CLOCK_1200HV)
         {S250M, VDD1_OPP1, 0x27},
         {S400M, VDD1_OPP2, 0x32},
         {S600M, VDD1_OPP3, 0x3E},
         {S850M, VDD1_OPP4, 0x4A},
         {S1200M, VDD1_OPP5, 0x6E},
-#endif
-#if defined(CONFIG_MACH_SHOLES_OPP5) && defined(CONFIG_MACH_SHOLES_CLOCK_1300HV)
+#elif defined(CONFIG_MACH_SHOLES_OPP5) && defined(CONFIG_MACH_SHOLES_CLOCK_1300HV)
         {S250M, VDD1_OPP1, 0x27},
         {S400M, VDD1_OPP2, 0x32},
         {S600M, VDD1_OPP3, 0x3E},
         {S900M, VDD1_OPP4, 0x4A},
         {S1300M, VDD1_OPP5, 0x6E},
-#endif
 	/* Extra 7 Slot Settings */
 	/* Low Voltage MPU Rate Tables  -  7 Slots */
-#if defined(CONFIG_MACH_SHOLES_OPP7) && defined(CONFIG_MACH_SHOLES_CLOCK_600LMHV)
+#elif defined(CONFIG_MACH_SHOLES_OPP7) && defined(CONFIG_MACH_SHOLES_CLOCK_600LMHV)
         {S250M, VDD1_OPP1, 0x27},
         {S350M, VDD1_OPP2, 0x27},
         {S400M, VDD1_OPP3, 0x32},
@@ -280,8 +261,7 @@ static struct omap_opp sholes_mpu_rate_table[] = {
         {S500M, VDD1_OPP5, 0x32},
         {S550M, VDD1_OPP6, 0x38},
         {S600M, VDD1_OPP7, 0x3E},
-#endif
-#if defined(CONFIG_MACH_SHOLES_OPP7) && defined(CONFIG_MACH_SHOLES_CLOCK_800LV)
+#elif defined(CONFIG_MACH_SHOLES_OPP7) && defined(CONFIG_MACH_SHOLES_CLOCK_800LV)
         {S250M, VDD1_OPP1, 0x27},
         {S400M, VDD1_OPP2, 0x32},
         {S500M, VDD1_OPP3, 0x32},
@@ -289,8 +269,7 @@ static struct omap_opp sholes_mpu_rate_table[] = {
         {S600M, VDD1_OPP5, 0x3E},
         {S700M, VDD1_OPP6, 0x3E},
         {S800M, VDD1_OPP7, 0x3E},
-#endif
-#if defined(CONFIG_MACH_SHOLES_OPP7) && defined(CONFIG_MACH_SHOLES_CLOCK_900LV)
+#elif defined(CONFIG_MACH_SHOLES_OPP7) && defined(CONFIG_MACH_SHOLES_CLOCK_900LV)
         {S250M, VDD1_OPP1, 0x27},
         {S400M, VDD1_OPP2, 0x32},
         {S500M, VDD1_OPP3, 0x32},
@@ -298,8 +277,7 @@ static struct omap_opp sholes_mpu_rate_table[] = {
         {S700M, VDD1_OPP5, 0x3E},
         {S800M, VDD1_OPP6, 0x3E},
         {S900M, VDD1_OPP7, 0x3F},
-#endif
-#if defined(CONFIG_MACH_SHOLES_OPP7) && defined(CONFIG_MACH_SHOLES_CLOCK_1000LV)
+#elif defined(CONFIG_MACH_SHOLES_OPP7) && defined(CONFIG_MACH_SHOLES_CLOCK_1000LV)
         {S250M, VDD1_OPP1, 0x27},
         {S400M, VDD1_OPP2, 0x32},
         {S500M, VDD1_OPP3, 0x32},
@@ -307,8 +285,7 @@ static struct omap_opp sholes_mpu_rate_table[] = {
         {S800M, VDD1_OPP5, 0x3E},
         {S900M, VDD1_OPP6, 0x3F},
         {S1000M, VDD1_OPP7, 0x3F},
-#endif
-#if defined(CONFIG_MACH_SHOLES_OPP7) && defined(CONFIG_MACH_SHOLES_CLOCK_1100LV)
+#elif defined(CONFIG_MACH_SHOLES_OPP7) && defined(CONFIG_MACH_SHOLES_CLOCK_1100LV)
         {S250M, VDD1_OPP1, 0x27},
         {S400M, VDD1_OPP2, 0x32},
         {S550M, VDD1_OPP3, 0x38},
@@ -316,8 +293,7 @@ static struct omap_opp sholes_mpu_rate_table[] = {
         {S800M, VDD1_OPP5, 0x3E},
         {S1000M, VDD1_OPP6, 0x3F},
         {S1100M, VDD1_OPP7, 0x50},
-#endif
-#if defined(CONFIG_MACH_SHOLES_OPP7) && defined(CONFIG_MACH_SHOLES_CLOCK_1200LV)
+#elif defined(CONFIG_MACH_SHOLES_OPP7) && defined(CONFIG_MACH_SHOLES_CLOCK_1200LV)
         {S250M, VDD1_OPP1, 0x27},
         {S400M, VDD1_OPP2, 0x32},
         {S550M, VDD1_OPP3, 0x38},
@@ -325,8 +301,7 @@ static struct omap_opp sholes_mpu_rate_table[] = {
         {S850M, VDD1_OPP5, 0x3F},
         {S1050M, VDD1_OPP6, 0x4A},
         {S1200M, VDD1_OPP7, 0x62},
-#endif
-#if defined(CONFIG_MACH_SHOLES_OPP7) && defined(CONFIG_MACH_SHOLES_CLOCK_1300LV)
+#elif defined(CONFIG_MACH_SHOLES_OPP7) && defined(CONFIG_MACH_SHOLES_CLOCK_1300LV)
         {S250M, VDD1_OPP1, 0x27},
         {S400M, VDD1_OPP2, 0x32},
         {S600M, VDD1_OPP3, 0x3E},
@@ -334,9 +309,8 @@ static struct omap_opp sholes_mpu_rate_table[] = {
         {S950M, VDD1_OPP5, 0x3F},
         {S1100M, VDD1_OPP6, 0x50},
         {S1300M, VDD1_OPP7, 0x62},
-#endif
 	/* Medium Voltage MPU Rate Tables  -  7 Slots */
-#if defined(CONFIG_MACH_SHOLES_OPP7) && defined(CONFIG_MACH_SHOLES_CLOCK_800MHV)
+#elif defined(CONFIG_MACH_SHOLES_OPP7) && defined(CONFIG_MACH_SHOLES_CLOCK_800MHV)
         {S250M, VDD1_OPP1, 0x27},
         {S400M, VDD1_OPP2, 0x32},
         {S500M, VDD1_OPP3, 0x32},
@@ -344,8 +318,7 @@ static struct omap_opp sholes_mpu_rate_table[] = {
         {S600M, VDD1_OPP5, 0x3E},
         {S700M, VDD1_OPP6, 0x3E},
         {S800M, VDD1_OPP7, 0x4A},
-#endif
-#if defined(CONFIG_MACH_SHOLES_OPP7) && defined(CONFIG_MACH_SHOLES_CLOCK_900MV)
+#elif defined(CONFIG_MACH_SHOLES_OPP7) && defined(CONFIG_MACH_SHOLES_CLOCK_900MV)
         {S250M, VDD1_OPP1, 0x27},
         {S400M, VDD1_OPP2, 0x32},
         {S500M, VDD1_OPP3, 0x32},
@@ -353,8 +326,7 @@ static struct omap_opp sholes_mpu_rate_table[] = {
         {S700M, VDD1_OPP5, 0x3E},
         {S800M, VDD1_OPP6, 0x4A},
         {S900M, VDD1_OPP7, 0x4A},
-#endif
-#if defined(CONFIG_MACH_SHOLES_OPP7) && defined(CONFIG_MACH_SHOLES_CLOCK_1000MV)
+#elif defined(CONFIG_MACH_SHOLES_OPP7) && defined(CONFIG_MACH_SHOLES_CLOCK_1000MV)
         {S250M, VDD1_OPP1, 0x27},
         {S400M, VDD1_OPP2, 0x32},
         {S500M, VDD1_OPP3, 0x32},
@@ -362,8 +334,7 @@ static struct omap_opp sholes_mpu_rate_table[] = {
         {S800M, VDD1_OPP5, 0x4A},
         {S900M, VDD1_OPP6, 0x4A},
         {S1000M, VDD1_OPP7, 0x50},
-#endif
-#if defined(CONFIG_MACH_SHOLES_OPP7) && defined(CONFIG_MACH_SHOLES_CLOCK_1100MV)
+#elif defined(CONFIG_MACH_SHOLES_OPP7) && defined(CONFIG_MACH_SHOLES_CLOCK_1100MV)
         {S250M, VDD1_OPP1, 0x27},
         {S400M, VDD1_OPP2, 0x32},
         {S550M, VDD1_OPP3, 0x38},
@@ -371,8 +342,7 @@ static struct omap_opp sholes_mpu_rate_table[] = {
         {S800M, VDD1_OPP5, 0x4A},
         {S1000M, VDD1_OPP6, 0x50},
         {S1100M, VDD1_OPP7, 0x62},
-#endif
-#if defined(CONFIG_MACH_SHOLES_OPP7) && defined(CONFIG_MACH_SHOLES_CLOCK_1200MV)
+#elif defined(CONFIG_MACH_SHOLES_OPP7) && defined(CONFIG_MACH_SHOLES_CLOCK_1200MV)
         {S250M, VDD1_OPP1, 0x27},
         {S400M, VDD1_OPP2, 0x32},
         {S550M, VDD1_OPP3, 0x38},
@@ -380,8 +350,7 @@ static struct omap_opp sholes_mpu_rate_table[] = {
         {S850M, VDD1_OPP5, 0x4A},
         {S1050M, VDD1_OPP6, 0x50},
         {S1200M, VDD1_OPP7, 0x62},
-#endif
-#if defined(CONFIG_MACH_SHOLES_OPP7) && defined(CONFIG_MACH_SHOLES_CLOCK_1300MV)
+#elif defined(CONFIG_MACH_SHOLES_OPP7) && defined(CONFIG_MACH_SHOLES_CLOCK_1300MV)
         {S250M, VDD1_OPP1, 0x27},
         {S400M, VDD1_OPP2, 0x32},
         {S600M, VDD1_OPP3, 0x3E},
@@ -389,9 +358,8 @@ static struct omap_opp sholes_mpu_rate_table[] = {
         {S950M, VDD1_OPP5, 0x3F},
         {S1100M, VDD1_OPP6, 0x50},
         {S1300M, VDD1_OPP7, 0x62},
-#endif
 	/* High Voltage MPU Rate Tables  -  7 Slots */
-#if defined(CONFIG_MACH_SHOLES_OPP7) && defined(CONFIG_MACH_SHOLES_CLOCK_900HV)
+#elif defined(CONFIG_MACH_SHOLES_OPP7) && defined(CONFIG_MACH_SHOLES_CLOCK_900HV)
         {S250M, VDD1_OPP1, 0x27},
         {S400M, VDD1_OPP2, 0x32},
         {S500M, VDD1_OPP3, 0x32},
@@ -399,8 +367,7 @@ static struct omap_opp sholes_mpu_rate_table[] = {
         {S700M, VDD1_OPP5, 0x3E},
         {S800M, VDD1_OPP6, 0x4A},
         {S900M, VDD1_OPP7, 0x50},
-#endif
-#if defined(CONFIG_MACH_SHOLES_OPP7) && defined(CONFIG_MACH_SHOLES_CLOCK_1000HV)
+#elif defined(CONFIG_MACH_SHOLES_OPP7) && defined(CONFIG_MACH_SHOLES_CLOCK_1000HV)
         {S250M, VDD1_OPP1, 0x27},
         {S400M, VDD1_OPP2, 0x32},
         {S500M, VDD1_OPP3, 0x32},
@@ -408,8 +375,7 @@ static struct omap_opp sholes_mpu_rate_table[] = {
         {S800M, VDD1_OPP5, 0x4A},
         {S900M, VDD1_OPP6, 0x50},
         {S1000M, VDD1_OPP7, 0x62},
-#endif
-#if defined(CONFIG_MACH_SHOLES_OPP7) && defined(CONFIG_MACH_SHOLES_CLOCK_1100HV)
+#elif defined(CONFIG_MACH_SHOLES_OPP7) && defined(CONFIG_MACH_SHOLES_CLOCK_1100HV)
         {S250M, VDD1_OPP1, 0x27},
         {S400M, VDD1_OPP2, 0x32},
         {S550M, VDD1_OPP3, 0x38},
@@ -417,8 +383,7 @@ static struct omap_opp sholes_mpu_rate_table[] = {
         {S800M, VDD1_OPP5, 0x4A},
         {S1000M, VDD1_OPP6, 0x62},
         {S1100M, VDD1_OPP7, 0x6E},
-#endif
-#if defined(CONFIG_MACH_SHOLES_OPP7) && defined(CONFIG_MACH_SHOLES_CLOCK_1200HV)
+#elif defined(CONFIG_MACH_SHOLES_OPP7) && defined(CONFIG_MACH_SHOLES_CLOCK_1200HV)
         {S250M, VDD1_OPP1, 0x27},
         {S400M, VDD1_OPP2, 0x32},
         {S550M, VDD1_OPP3, 0x38},
@@ -426,8 +391,7 @@ static struct omap_opp sholes_mpu_rate_table[] = {
         {S850M, VDD1_OPP5, 0x4A},
         {S1050M, VDD1_OPP6, 0x62},
         {S1200M, VDD1_OPP7, 0x6E},
-#endif
-#if defined(CONFIG_MACH_SHOLES_OPP7) && defined(CONFIG_MACH_SHOLES_CLOCK_1300HV)
+#elif defined(CONFIG_MACH_SHOLES_OPP7) && defined(CONFIG_MACH_SHOLES_CLOCK_1300HV)
         {S250M, VDD1_OPP1, 0x27},
         {S400M, VDD1_OPP2, 0x32},
         {S600M, VDD1_OPP3, 0x3E},
