@@ -72,7 +72,6 @@
 extern struct MAILBOX_CONTEXT mboxsetting;
 extern unsigned short enable_off_mode;
 
-extern unsigned short min_active_opp;
 /*
  *  ======== handle_constraints_set ========
  *  	Sets new DSP constraint
@@ -81,28 +80,24 @@ DSP_STATUS handle_constraints_set(struct WMD_DEV_CONTEXT *pDevContext,
 				  IN void *pArgs)
 {
 #ifdef CONFIG_BRIDGE_DVFS
-	u32 pConstraintVal;
+	u32 *pConstraintVal;
+	DSP_STATUS status = DSP_SOK;
+	struct CFG_HOSTRES resources;
 	struct dspbridge_platform_data *pdata =
 		omap_dspbridge_dev->dev.platform_data;
+	status = CFG_GetHostResources(
+		(struct CFG_DEVNODE *)DRV_GetFirstDevExtension(), &resources);
 
-	pConstraintVal = *(((u32 *)pArgs) + 1);
+	pConstraintVal = (u32 *)(pArgs);
 	/* Read the target value requested by DSP  */
 	DBG_Trace(DBG_LEVEL7, "handle_constraints_set:"
-		"opp requested = 0x%x\n", pConstraintVal);
+		"opp requested = 0x%x\n", (u32)*(pConstraintVal+1));
+	status = HW_MBOX_saveSettings(resources.dwMboxBase);
 
 	/* Set the new opp value */
-	if (pdata->dsp_set_min_opp) {
-		/*
-		 * When Smartreflex is ON, DSP requires at least OPP level 3
-		 * to operate reliably. So boost lower OPP levels to OPP3.
-		 */
-		if (pConstraintVal < min_active_opp) {
-			pr_debug("DSPBRIDGE: VDD1 OPP%x elevated to OPP%x\n",
-					pConstraintVal, min_active_opp);
-			(*pdata->dsp_set_min_opp)(min_active_opp);
-		} else
-			(*pdata->dsp_set_min_opp)(pConstraintVal);
-	}
+	if (pdata->dsp_set_min_opp)
+		(*pdata->dsp_set_min_opp)((u32)*(pConstraintVal+1));
+	return DSP_SOK;
 #endif /* #ifdef CONFIG_BRIDGE_DVFS */
 	return DSP_SOK;
 }
@@ -115,12 +110,10 @@ DSP_STATUS handle_hibernation_fromDSP(struct WMD_DEV_CONTEXT *pDevContext)
 {
 	DSP_STATUS status = DSP_SOK;
 #ifdef CONFIG_PM
-	u16 timeout = PWRSTST_TIMEOUT / 10;
+	u16 usCount = PWRSTST_TIMEOUT / 10;
+	struct CFG_HOSTRES resources;
 	enum HW_PwrState_t pwrState;
-	u32  prev_state;
-#ifdef BRIDGE_NTFY_PWRERR
-	struct DEH_MGR *hDehMgr;
-#endif /* #ifdef BRIDGE_NTFY_PWRERR */
+        u32  prev_state;
 #ifdef CONFIG_BRIDGE_DVFS
 	u32 opplevel;
 	struct IO_MGR *hIOMgr;
@@ -128,31 +121,34 @@ DSP_STATUS handle_hibernation_fromDSP(struct WMD_DEV_CONTEXT *pDevContext)
 				omap_dspbridge_dev->dev.platform_data;
 #endif
 
-	prev_state = pDevContext->dwBrdState;
-	pDevContext->dwBrdState = BRD_SLEEP_TRANSITION;
+        prev_state = pDevContext->dwBrdState;
+        pDevContext->dwBrdState = BRD_SLEEP_TRANSITION;
 
-	HW_PWR_IVA2StateGet(pDevContext->prmbase, HW_PWR_DOMAIN_DSP,
+	status = CFG_GetHostResources(
+		 (struct CFG_DEVNODE *)DRV_GetFirstDevExtension(), &resources);
+	if (DSP_FAILED(status))
+		return status;
+
+	HW_PWR_IVA2StateGet(resources.dwPrmBase, HW_PWR_DOMAIN_DSP,
 			    &pwrState);
 	/* Wait for DSP to move into OFF state */
-	while ((pwrState != HW_PWR_STATE_OFF) && --timeout) {
+	while ((pwrState != HW_PWR_STATE_OFF) && --usCount) {
 		if (msleep_interruptible(10)) {
 			pr_err("Waiting for DSP OFF mode interrupted\n");
 			return DSP_EFAIL;
 		}
-		HW_PWR_IVA2StateGet(pDevContext->prmbase, HW_PWR_DOMAIN_DSP,
+		HW_PWR_IVA2StateGet(resources.dwPrmBase, HW_PWR_DOMAIN_DSP,
 				    &pwrState);
 	}
-	if (timeout == 0) {
-		pDevContext->dwBrdState = prev_state;
-		pr_err("Timed out waiting for DSP self hibernation\n");
-#ifdef BRIDGE_NTFY_PWRERR
-		DEV_GetDehMgr(pDevContext->hDevObject, &hDehMgr);
-		WMD_DEH_Notify(hDehMgr, DSP_PWRERROR, 0);
-#endif /* #ifdef BRIDGE_NTFY_PWRERR */
+	if (usCount == 0) {
+                pDevContext->dwBrdState = prev_state;
+		DBG_Trace(DBG_LEVEL7, "Timed out Waiting for DSP Off mode \n");
 		status = WMD_E_TIMEOUT;
+		return status;
 	} else {
+
 		/* Save mailbox settings */
-		status = HW_MBOX_saveSettings(pDevContext->dwMailBoxBase);
+		status = HW_MBOX_saveSettings(resources.dwMboxBase);
 		DBG_Trace(DBG_LEVEL6, "MailBoxSettings: SYSCONFIG = 0x%x\n",
 			 mboxsetting.sysconfig);
 		DBG_Trace(DBG_LEVEL6, "MailBoxSettings: IRQENABLE0 = 0x%x\n",
@@ -163,6 +159,10 @@ DSP_STATUS handle_hibernation_fromDSP(struct WMD_DEV_CONTEXT *pDevContext)
 		status = DSP_PeripheralClocks_Disable(pDevContext, NULL);
 
 		if (DSP_SUCCEEDED(status)) {
+			status = CLK_Disable(SERVICESCLK_iva2_ck);
+			if (DSP_FAILED(status))
+				return status;
+
 			/* Update the Bridger Driver state */
 			pDevContext->dwBrdState = BRD_DSP_HIBERNATION;
 #ifdef CONFIG_BRIDGE_DVFS
@@ -170,22 +170,20 @@ DSP_STATUS handle_hibernation_fromDSP(struct WMD_DEV_CONTEXT *pDevContext)
 			if (DSP_FAILED(status))
 				return status;
 			IO_SHMsetting(hIOMgr, SHM_GETOPP, &opplevel);
+			/* Set the OPP to low level before moving to OFF mode */
 			if (opplevel != VDD1_OPP1) {
 				DBG_Trace(DBG_LEVEL5,
-					" DSP requested OPP = %d, MPU"
-					" requesting low OPP %d instead\n",
-					opplevel, VDD1_OPP1);
+					"Tiomap_pwr.c - DSP requested"
+					" OPP = %d, MPU requesting low"
+					" OPP %d instead\n", opplevel,
+					VDD1_OPP1);
+				if (pdata->dsp_set_min_opp)
+					(*pdata->dsp_set_min_opp)(VDD1_OPP1);
+				status = DSP_SOK;
 			}
-			/*
-			 * Set the OPP to low level before moving to OFF
-			 * mode
-			 */
-			if (pdata->dsp_set_min_opp)
-				(*pdata->dsp_set_min_opp)(VDD1_OPP1);
-			status = DSP_SOK;
 #endif /* CONFIG_BRIDGE_DVFS */
 		} else {
-			pDevContext->dwBrdState = prev_state;
+                        pDevContext->dwBrdState = prev_state;
 			DBG_Trace(DBG_LEVEL7,
 				 "handle_hibernation_fromDSP- FAILED\n");
 		}
@@ -203,24 +201,27 @@ DSP_STATUS SleepDSP(struct WMD_DEV_CONTEXT *pDevContext, IN u32 dwCmd,
 {
 	DSP_STATUS status = DSP_SOK;
 #ifdef CONFIG_PM
-#ifdef CONFIG_BRIDGE_NTFY_PWRERR
+	struct CFG_HOSTRES resources;
 	struct DEH_MGR *hDehMgr;
-#endif /* CONFIG_BRIDGE_NTFY_PWRERR */
-	u16 timeout = PWRSTST_TIMEOUT / 10;
-	u32 prev_state;
-	enum HW_PwrState_t pwrState, targetPwrState;
+	u16 usCount = PWRSTST_TIMEOUT / 10;
+        u32 prev_state;
+	enum HW_PwrState_t pwrState;
+	enum HW_PwrState_t targetPwrState;
 
+	status = CFG_GetHostResources(
+		 (struct CFG_DEVNODE *)DRV_GetFirstDevExtension(), &resources);
+	if (DSP_FAILED(status))
+		return status;
 	DBG_Trace(DBG_LEVEL7, "SleepDSP- Enter function \n");
 
-	/* Check if sleep code is valid */
+		/* next, check if sleep code is valid... */
 	if ((dwCmd != PWR_DEEPSLEEP) && (dwCmd != PWR_EMERGENCYDEEPSLEEP)) {
 		DBG_Trace(DBG_LEVEL7, "SleepDSP- Illegal sleep command\n");
 		return DSP_EINVALIDARG;
 	}
-
 	switch (pDevContext->dwBrdState) {
 	case BRD_RUNNING:
-		status = HW_MBOX_saveSettings(pDevContext->dwMailBoxBase);
+		status = HW_MBOX_saveSettings(resources.dwMboxBase);
 		if (enable_off_mode) {
 			CHNLSM_InterruptDSP2(pDevContext,
 					     MBX_PM_DSPHIBERNATE);
@@ -233,10 +234,10 @@ DSP_STATUS SleepDSP(struct WMD_DEV_CONTEXT *pDevContext, IN u32 dwCmd,
 					     MBX_PM_DSPRETENTION);
 			targetPwrState = HW_PWR_STATE_RET;
 		}
-		prev_state = BRD_RUNNING;
+                prev_state = BRD_RUNNING;
 		break;
 	case BRD_RETENTION:
-		status = HW_MBOX_saveSettings(pDevContext->dwMailBoxBase);
+		status = HW_MBOX_saveSettings(resources.dwMboxBase);
 		if (enable_off_mode) {
 			CHNLSM_InterruptDSP2(pDevContext,
 					     MBX_PM_DSPHIBERNATE);
@@ -248,6 +249,7 @@ DSP_STATUS SleepDSP(struct WMD_DEV_CONTEXT *pDevContext, IN u32 dwCmd,
 		break;
 	case BRD_HIBERNATION:
 	case BRD_DSP_HIBERNATION:
+		status = HW_MBOX_saveSettings(resources.dwMboxBase);
 		/* Already in Hibernation, so just return */
 		DBG_Trace(DBG_LEVEL7, "SleepDSP- DSP already in "
 			 "hibernation\n");
@@ -261,58 +263,45 @@ DSP_STATUS SleepDSP(struct WMD_DEV_CONTEXT *pDevContext, IN u32 dwCmd,
 			 "SleepDSP- Bridge in Illegal state\n");
 			return DSP_EFAIL;
 	}
-	pDevContext->dwBrdState = BRD_SLEEP_TRANSITION;
+        pDevContext->dwBrdState = BRD_SLEEP_TRANSITION;
 	/* Get the PRCM DSP power domain status */
-	HW_PWR_IVA2StateGet(pDevContext->prmbase, HW_PWR_DOMAIN_DSP,
-			&pwrState);
-
+	HW_PWR_IVA2StateGet(resources.dwPrmBase, HW_PWR_DOMAIN_DSP,
+			    &pwrState);
 	/* Wait for DSP to move into target power state */
-	while ((pwrState != targetPwrState) && timeout--) {
+	while ((pwrState != targetPwrState) && usCount--) {
 		if (msleep_interruptible(10)) {
 			pr_err("Waiting for DSP to Suspend interrupted\n");
 			return DSP_EFAIL;
 		}
-		HW_PWR_IVA2StateGet(pDevContext->prmbase, HW_PWR_DOMAIN_DSP,
+		HW_PWR_IVA2StateGet(resources.dwPrmBase, HW_PWR_DOMAIN_DSP,
 				    &pwrState);
 	}
-
-	if (!timeout) {
-		pDevContext->dwBrdState = prev_state;
-		pr_err("Timed out waiting for DSP suspend %x\n", pwrState);
-#ifdef CONFIG_BRIDGE_NTFY_PWRERR
+	if (usCount == 0) {
+                pDevContext->dwBrdState = prev_state;
+		DBG_Trace(DBG_LEVEL7, "SleepDSP: Timed out Waiting for DSP"
+			 " STANDBY %x \n", pwrState);
 		DEV_GetDehMgr(pDevContext->hDevObject, &hDehMgr);
 		WMD_DEH_Notify(hDehMgr, DSP_PWRERROR, 0);
-#endif /* CONFIG_BRIDGE_NTFY_PWRERR */
 		return WMD_E_TIMEOUT;
 	} else {
 		DBG_Trace(DBG_LEVEL7, "SleepDSP: DSP STANDBY Pwr state %x \n",
 			 pwrState);
+		/* Turn off DSP Peripheral clocks  */
+		status = DSP_PeripheralClocks_Disable(pDevContext, NULL);
+		if (DSP_FAILED(status))
+			DBG_Trace(DBG_LEVEL7, "SleepDSP- FAILED\n");
+
+		status = CLK_Disable(SERVICESCLK_iva2_ck);
+		if (DSP_FAILED(status))
+			DBG_Trace(DBG_LEVEL7, "SleepDSP- FAILED\n");
 
 		/* Update the Bridger Driver state */
 		if (enable_off_mode)
 			pDevContext->dwBrdState = BRD_HIBERNATION;
 		else
 			pDevContext->dwBrdState = BRD_RETENTION;
-
-		/* Turn off DSP Peripheral clocks  */
-		status = DSP_PeripheralClocks_Disable(pDevContext, NULL);
-		if (DSP_FAILED(status)) {
-			DBG_Trace(DBG_LEVEL7, "SleepDSP- FAILED\n");
-			return status;
-		}
-#ifdef CONFIG_BRIDGE_DVFS
-		else if (enable_off_mode) {
-			struct dspbridge_platform_data *pdata =
-				omap_dspbridge_dev->dev.platform_data;
-			/*
-			 * Set the OPP to low level before moving to OFF mode
-			 */
-			if (pdata->dsp_set_min_opp)
-				(*pdata->dsp_set_min_opp)(VDD1_OPP1);
-		}
-#endif /* CONFIG_BRIDGE_DVFS */
 	}
-#endif /* CONFIG_PM */
+#endif
 	return status;
 }
 
@@ -323,34 +312,60 @@ DSP_STATUS SleepDSP(struct WMD_DEV_CONTEXT *pDevContext, IN u32 dwCmd,
  */
 DSP_STATUS WakeDSP(struct WMD_DEV_CONTEXT *pDevContext, IN void *pArgs)
 {
+	DSP_STATUS status = DSP_SOK;
 #ifdef CONFIG_PM
-#ifdef CONFIG_BRIDGE_DEBUG
+	struct CFG_HOSTRES resources;
 	enum HW_PwrState_t pwrState;
-#endif /* CONFIG_BRIDGE_DEBUG */
+	u32 temp;
 
-	/* Check the BRD/WMD state, if it is not 'SLEEP' then return failure */
+	status = CFG_GetHostResources(
+		 (struct CFG_DEVNODE *)DRV_GetFirstDevExtension(), &resources);
+	if (DSP_FAILED(status))
+		return status;
+	/* check the BRD/WMD state, if it is not 'SLEEP' then return failure */
 	if (pDevContext->dwBrdState == BRD_RUNNING ||
-	    pDevContext->dwBrdState == BRD_STOPPED) {
+		pDevContext->dwBrdState == BRD_STOPPED ||
+		pDevContext->dwBrdState == BRD_DSP_HIBERNATION) {
 		/* The Device is in 'RET' or 'OFF' state and WMD state is not
 		 * 'SLEEP', this means state inconsistency, so return  */
-		return DSP_SOK;
+		status = DSP_SOK;
+		return status;
 	}
+	/* Enable the DSP peripheral clocks and load monitor timer
+	 * before waking the DSP */
+	DBG_Trace(DBG_LEVEL6, "WakeDSP: enable DSP Peripheral Clks = 0x%x \n",
+		 pDevContext->uDspPerClks);
+	status = DSP_PeripheralClocks_Enable(pDevContext, NULL);
 
-	/* Send a wakeup message to DSP */
-	CHNLSM_InterruptDSP2(pDevContext, MBX_PM_DSPWAKEUP);
+	/* Enabling Dppll in lock mode */
+		temp = (u32) *((REG_UWORD32 *)
+			((u32) (resources.dwCmBase) + 0x34));
+		temp = (temp & 0xFFFFFFFE) | 0x1;
+		*((REG_UWORD32 *) ((u32) (resources.dwCmBase) + 0x34)) =
+						(u32) temp;
+		temp = (u32) *((REG_UWORD32 *)
+			((u32) (resources.dwCmBase) + 0x4));
+		temp = (temp & 0xFFFFFC8) | 0x37;
 
-#ifdef CONFIG_BRIDGE_DEBUG
-	HW_PWR_IVA2StateGet(pDevContext->prmbase, HW_PWR_DOMAIN_DSP,
-			&pwrState);
-	DBG_Trace(DBG_LEVEL7,
-			"\nWakeDSP: Power State After sending Interrupt "
-			"to DSP %x\n", pwrState);
-#endif /* CONFIG_BRIDGE_DEBUG */
+		*((REG_UWORD32 *) ((u32) (resources.dwCmBase) + 0x4)) =
+						(u32) temp;
 
-	/* Set the device state to RUNNIG */
-	pDevContext->dwBrdState = BRD_RUNNING;
-#endif /* CONFIG_PM */
-	return DSP_SOK;
+	udelay(10);
+	if (DSP_SUCCEEDED(status)) {
+		/* Send a message to DSP to wake up */
+		CHNLSM_InterruptDSP2(pDevContext, MBX_PM_DSPWAKEUP);
+		HW_PWR_IVA2StateGet(resources.dwPrmBase, HW_PWR_DOMAIN_DSP,
+				    &pwrState);
+		DBG_Trace(DBG_LEVEL7,
+			 "\nWakeDSP: Power State After sending Interrupt "
+			 "to DSP %x\n", pwrState);
+		/* set the device state to RUNNIG */
+		pDevContext->dwBrdState = BRD_RUNNING;
+	} else {
+		DBG_Trace(DBG_LEVEL6, "WakeDSP: FAILED\n");
+	}
+#endif
+	return status;
 }
 
 /*
@@ -368,7 +383,6 @@ DSP_STATUS DSPPeripheralClkCtrl(struct WMD_DEV_CONTEXT *pDevContext,
 	u32 dspPerClksBefore;
 	DSP_STATUS status = DSP_SOK;
 	DSP_STATUS status1 = DSP_SOK;
-	u32 value;
 
 	DBG_Trace(DBG_ENTER, "Entering DSPPeripheralClkCtrl \n");
 	dspPerClksBefore = pDevContext->uDspPerClks;
@@ -407,17 +421,6 @@ DSP_STATUS DSPPeripheralClkCtrl(struct WMD_DEV_CONTEXT *pDevContext,
 			 "DSPPeripheralClkCtrl : Disable CLK for \n");
 		status1 = CLK_Disable(BPWR_Clks[clkIdIndex].intClk);
 		status = CLK_Disable(BPWR_Clks[clkIdIndex].funClk);
-		if (BPWR_CLKID[clkIdIndex] == BPWR_MCBSP1) {
-			/* clear MCBSP1_CLKS, on McBSP1 OFF */
-			value = __raw_readl(pDevContext->sysctrlbase + 0x274);
-			value &= ~(1 << 2);
-			__raw_writel(value, pDevContext->sysctrlbase + 0x274);
-		} else if (BPWR_CLKID[clkIdIndex] == BPWR_MCBSP2) {
-			/* clear MCBSP2_CLKS, on McBSP2 OFF */
-			value = __raw_readl(pDevContext->sysctrlbase + 0x274);
-			value &= ~(1 << 6);
-			__raw_writel(value, pDevContext->sysctrlbase + 0x274);
-		}
 		DSPClkWakeupEventCtrl(BPWR_Clks[clkIdIndex].clkId, false);
 		if ((DSP_SUCCEEDED(status)) && (DSP_SUCCEEDED(status1))) {
 			(pDevContext->uDspPerClks) &=
@@ -432,17 +435,6 @@ DSP_STATUS DSPPeripheralClkCtrl(struct WMD_DEV_CONTEXT *pDevContext,
 			 "DSPPeripheralClkCtrl : Enable CLK for \n");
 		status1 = CLK_Enable(BPWR_Clks[clkIdIndex].intClk);
 		status = CLK_Enable(BPWR_Clks[clkIdIndex].funClk);
-		if (BPWR_CLKID[clkIdIndex] == BPWR_MCBSP1) {
-			/* set MCBSP1_CLKS, on McBSP1 ON */
-			value = __raw_readl(pDevContext->sysctrlbase + 0x274);
-			value |= 1 << 2;
-			__raw_writel(value, pDevContext->sysctrlbase + 0x274);
-		} else if (BPWR_CLKID[clkIdIndex] == BPWR_MCBSP2) {
-			/* set MCBSP2_CLKS, on McBSP2 ON */
-			value = __raw_readl(pDevContext->sysctrlbase + 0x274);
-			value |= 1 << 6;
-			__raw_writel(value, pDevContext->sysctrlbase + 0x274);
-		}
 		DSPClkWakeupEventCtrl(BPWR_Clks[clkIdIndex].clkId, true);
 		if ((DSP_SUCCEEDED(status)) && (DSP_SUCCEEDED(status1))) {
 			(pDevContext->uDspPerClks) |= (1 << clkIdIndex);
@@ -553,25 +545,14 @@ DSP_STATUS PostScale_DSP(struct WMD_DEV_CONTEXT *pDevContext, IN void *pArgs)
 DSP_STATUS DSP_PeripheralClocks_Disable(struct WMD_DEV_CONTEXT *pDevContext,
 					IN void *pArgs)
 {
+
 	u32 clkIdx;
 	DSP_STATUS status = DSP_SOK;
-	u32 value;
 
 	for (clkIdx = 0; clkIdx < MBX_PM_MAX_RESOURCES; clkIdx++) {
 		if (((pDevContext->uDspPerClks) >> clkIdx) & 0x01) {
 			/* Disables the interface clock of the peripheral */
 			status = CLK_Disable(BPWR_Clks[clkIdx].intClk);
-			if (BPWR_CLKID[clkIdx] == BPWR_MCBSP1) {
-				/* clear MCBSP1_CLKS, on McBSP1 OFF */
-				value = __raw_readl(pDevContext->sysctrlbase + 0x274);
-				value &= ~(1 << 2);
-				__raw_writel(value, pDevContext->sysctrlbase + 0x274);
-			} else if (BPWR_CLKID[clkIdx] == BPWR_MCBSP2) {
-				/* clear MCBSP2_CLKS, on McBSP2 OFF */
-				value = __raw_readl(pDevContext->sysctrlbase + 0x274);
-				value &= ~(1 << 6);
-				__raw_writel(value, pDevContext->sysctrlbase + 0x274);
-			}
 			if (DSP_FAILED(status)) {
 				DBG_Trace(DBG_LEVEL7,
 					 "Failed to Enable the DSP Peripheral"
@@ -598,23 +579,11 @@ DSP_STATUS DSP_PeripheralClocks_Enable(struct WMD_DEV_CONTEXT *pDevContext,
 {
 	u32 clkIdx;
 	DSP_STATUS int_clk_status = DSP_EFAIL, fun_clk_status = DSP_EFAIL;
-	u32 value;
 
 	for (clkIdx = 0; clkIdx < MBX_PM_MAX_RESOURCES; clkIdx++) {
 		if (((pDevContext->uDspPerClks) >> clkIdx) & 0x01) {
 			/* Enable the interface clock of the peripheral */
 			int_clk_status = CLK_Enable(BPWR_Clks[clkIdx].intClk);
-			if (BPWR_CLKID[clkIdx] == BPWR_MCBSP1) {
-				/* set MCBSP1_CLKS, on McBSP1 ON */
-				value = __raw_readl(pDevContext->sysctrlbase + 0x274);
-				value |= 1 << 2;
-				__raw_writel(value, pDevContext->sysctrlbase + 0x274);
-			} else if (BPWR_CLKID[clkIdx] == BPWR_MCBSP2) {
-				/* set MCBSP2_CLKS, on McBSP2 ON */
-				value = __raw_readl(pDevContext->sysctrlbase + 0x274);
-				value |= 1 << 6;
-				__raw_writel(value, pDevContext->sysctrlbase + 0x274);
-			}
 			/* Enable the functional clock of the periphearl */
 			fun_clk_status = CLK_Enable(BPWR_Clks[clkIdx].funClk);
 		}
@@ -799,26 +768,25 @@ void DSPClkWakeupEventCtrl(u32 ClkId, bool enable)
  */
 DSP_STATUS tiomap3430_bump_dsp_opp_level(void)
 {
-#ifdef CONFIG_BRIDGE_DVFS
-	struct WMD_DEV_CONTEXT *dwContext;
-	struct DEV_OBJECT *hDevObject =
-			(struct DEV_OBJECT *)DRV_GetFirstDevObject();
+#ifndef CONFIG_BRIDGE_DVFS
+	u32 opplevel;
+
 	struct dspbridge_platform_data *pdata =
 			omap_dspbridge_dev->dev.platform_data;
 
-	if (DSP_FAILED(DEV_GetWMDContext(hDevObject, &dwContext)))
-		return DSP_EFAIL;
+	if (pdata->dsp_get_opp)
+		opplevel = (*pdata->dsp_get_opp)();
 
-	if (dwContext->dwBrdState == BRD_DSP_HIBERNATION ||
-	    dwContext->dwBrdState == BRD_HIBERNATION) {
 		/*
-		 * Increase OPP before waking up the DSP.
+		 * If OPP is at minimum level, increase it before waking
+		 * up the DSP.
 		 */
-		(*pdata->dsp_set_min_opp)(min_active_opp);
-		DBG_Trace(DBG_LEVEL7, "CHNLSM_InterruptDSP: Setting "
-			"the vdd1 constraint level to %d before "
-			"waking DSP \n", min_active_opp);
-	}
+		if (opplevel == 1 && pdata->dsp_set_min_opp) {
+			(*pdata->dsp_set_min_opp)(VDD1_OPP2);
+			DBG_Trace(DBG_LEVEL7, "CHNLSM_InterruptDSP: Setting "
+				"the vdd1 constraint level to %d before "
+				"waking DSP \n", VDD1_OPP2);
+		}
 #endif
 	return DSP_SOK;
 }

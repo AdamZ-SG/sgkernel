@@ -30,7 +30,6 @@
  *      MEM_FreePhysMem
  *      MEM_Init
  *      MEM_ExtPhysPoolInit
- *      MEM_ExtPhysPoolRelease
  *
  *! Revision History:
  *! =================
@@ -200,7 +199,7 @@ void MEM_ExtPhysPoolInit(u32 poolPhysBase, u32 poolSize)
 	}
 }
 
-void MEM_ExtPhysPoolRelease(void)
+static void MEM_ExtPhysPoolRelease(void)
 {
 	GT_0trace(MEM_debugMask, GT_1CLASS,
 		  "Releasing External memory pool \n");
@@ -304,9 +303,13 @@ void *MEM_Alloc(u32 cBytes, enum MEM_POOLATTRS type)
 			break;
 		case MEM_LARGEVIRTMEM:
 #ifndef MEM_CHECK
-			pMem = vmalloc(cBytes);
+			/* FIXME - Replace with 'vmalloc' after BP fix */
+			pMem = __vmalloc(cBytes,
+				(in_atomic()) ? GFP_ATOMIC : GFP_KERNEL, PAGE_KERNEL);
 #else
-			pMem = vmalloc(cBytes + sizeof(struct memInfo));
+			/* FIXME - Replace with 'vmalloc' after BP fix */
+			pMem = __vmalloc((cBytes + sizeof(struct memInfo)),
+				(in_atomic()) ? GFP_ATOMIC : GFP_KERNEL, PAGE_KERNEL);
 			if (pMem) {
 				pMem->size = cBytes;
 				pMem->caller = __builtin_return_address(0);
@@ -413,11 +416,16 @@ void *MEM_Calloc(u32 cBytes, enum MEM_POOLATTRS type)
 			break;
 		case MEM_LARGEVIRTMEM:
 #ifndef MEM_CHECK
-			pMem = vmalloc(cBytes);
+			/* FIXME - Replace with 'vmalloc' after BP fix */
+			pMem = __vmalloc(cBytes,
+				(in_atomic()) ? GFP_ATOMIC : GFP_KERNEL, PAGE_KERNEL);
 			if (pMem)
 				memset(pMem, 0, cBytes);
+
 #else
-			pMem = vmalloc(cBytes + sizeof(struct memInfo));
+			/* FIXME - Replace with 'vmalloc' after BP fix */
+			pMem = __vmalloc(cBytes + sizeof(struct memInfo),
+				(in_atomic()) ? GFP_ATOMIC : GFP_KERNEL, PAGE_KERNEL);
 			if (pMem) {
 				memset((void *)((u32)pMem +
 					sizeof(struct memInfo)), 0, cBytes);
@@ -461,6 +469,7 @@ void MEM_Exit(void)
 		MEM_Check();
 
 #endif
+	MEM_ExtPhysPoolRelease();
 	DBC_Ensure(cRefs >= 0);
 }
 
@@ -469,10 +478,9 @@ void MEM_Exit(void)
  *  Purpose:
  *      Flush cache
  */
-void MEM_FlushCache(void *pMemBuf, u32 cBytes, u32 FlushType)
+void MEM_FlushCache(void *pMemBuf, u32 cBytes, s32 FlushType)
 {
-	if (cRefs <= 0 || !pMemBuf)
-		return;
+	DBC_Require(cRefs > 0);
 
 	switch (FlushType) {
 	/* invalidate only */
@@ -493,10 +501,6 @@ void MEM_FlushCache(void *pMemBuf, u32 cBytes, u32 FlushType)
 		outer_flush_range(__pa((u32)pMemBuf), __pa((u32)pMemBuf +
 				  cBytes));
 	break;
-	/* Writeback and Invalidate all */
-	case PROC_WRBK_INV_ALL:
-		__cpuc_flush_kern_all();
-		break;
 	default:
 		GT_1trace(MEM_debugMask, GT_6CLASS, "MEM_FlushCache: invalid "
 			  "FlushMemType 0x%x\n", FlushType);
@@ -505,44 +509,6 @@ void MEM_FlushCache(void *pMemBuf, u32 cBytes, u32 FlushType)
 
 }
 
-/*
- *  ======== MEM_VFree ========
- *  Purpose:
- *      Free the given block of system memory in virtual space.
- */
-void MEM_VFree(IN void *pMemBuf)
-{
-#ifdef MEM_CHECK
-	struct memInfo *pMem = (void *)((u32)pMemBuf - sizeof(struct memInfo));
-#endif
-
-	DBC_Require(pMemBuf != NULL);
-
-	GT_1trace(MEM_debugMask, GT_ENTER, "MEM_VFree: pMemBufs 0x%x\n",
-		  pMemBuf);
-
-	if (pMemBuf) {
-#ifndef MEM_CHECK
-		vfree(pMemBuf);
-#else
-		if (pMem) {
-			if (pMem->dwSignature == memInfoSign) {
-				spin_lock(&mMan.lock);
-				MLST_RemoveElem(&mMan.lst,
-						(struct LST_ELEM *) pMem);
-				spin_unlock(&mMan.lock);
-				pMem->dwSignature = 0;
-				vfree(pMem);
-			} else {
-				GT_1trace(MEM_debugMask, GT_7CLASS,
-					"Invalid allocation or "
-					"Buffer underflow at %x\n",
-					(u32) pMem + sizeof(struct memInfo));
-			}
-		}
-#endif
-	}
-}
 
 /*
  *  ======== MEM_Free ========

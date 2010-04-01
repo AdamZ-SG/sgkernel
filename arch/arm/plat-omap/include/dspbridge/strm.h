@@ -59,7 +59,6 @@
 #include <dspbridge/dev.h>
 
 #include <dspbridge/strmdefs.h>
-#include <dspbridge/proc.h>
 
 /*
  *  ======== STRM_AllocateBuffer ========
@@ -84,8 +83,7 @@
 	extern DSP_STATUS STRM_AllocateBuffer(struct STRM_OBJECT *hStrm,
 					      u32 uSize,
 					      OUT u8 **apBuffer,
-					      u32 uNumBufs,
-					      struct PROCESS_CONTEXT *pr_ctxt);
+					      u32 uNumBufs);
 
 /*
  *  ======== STRM_Close ========
@@ -103,8 +101,7 @@
  *      STRM_Init(void) called.
  *  Ensures:
  */
-	extern DSP_STATUS STRM_Close(struct STRM_OBJECT *hStrm,
-				struct PROCESS_CONTEXT *pr_ctxt);
+	extern DSP_STATUS STRM_Close(struct STRM_OBJECT *hStrm);
 
 /*
  *  ======== STRM_Create ========
@@ -175,8 +172,7 @@
  *  Ensures:
  */
 	extern DSP_STATUS STRM_FreeBuffer(struct STRM_OBJECT *hStrm,
-					  u8 **apBuffer, u32 uNumBufs,
-					  struct PROCESS_CONTEXT *pr_ctxt);
+					  u8 **apBuffer, u32 uNumBufs);
 
 /*
  *  ======== STRM_GetEventHandle ========
@@ -311,8 +307,7 @@
  */
 	extern DSP_STATUS STRM_Open(struct NODE_OBJECT *hNode, u32 uDir,
 				    u32 uIndex, IN struct STRM_ATTR *pAttr,
-				    OUT struct STRM_OBJECT **phStrm,
-				    struct PROCESS_CONTEXT *pr_ctxt);
+				    OUT struct STRM_OBJECT **phStrm);
 
 /*
  *  ======== STRM_PrepareBuffer ========

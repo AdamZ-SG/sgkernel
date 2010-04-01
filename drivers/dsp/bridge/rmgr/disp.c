@@ -59,8 +59,10 @@
 #include <dspbridge/dbc.h>
 
 /*  ----------------------------------- OS Adaptation Layer */
+#include <dspbridge/dev.h>
 #include <dspbridge/mem.h>
 #include <dspbridge/sync.h>
+#include <dspbridge/csl.h>
 
 /*  ----------------------------------- Link Driver */
 #include <dspbridge/wmd.h>

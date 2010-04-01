@@ -29,7 +29,6 @@
 #include <mach/hardware.h>
 #include <asm/system.h>
 #include <mach/clock.h>
-
 #if defined(CONFIG_ARCH_OMAP3) && !defined(CONFIG_OMAP_PM_NONE)
 #include <mach/omap-pm.h>
 #endif
@@ -156,7 +155,8 @@ static int __init omap_cpu_init(struct cpufreq_policy *policy)
 	policy->cur = omap_getspeed(0);
 
 	/* FIXME: what's the actual transition time? */
-	policy->cpuinfo.transition_latency = 300 * 1000;
+	/* 50 uS chosen to improve cpufreq governor response time */
+	policy->cpuinfo.transition_latency = 50000;
 	return 0;
 }
 

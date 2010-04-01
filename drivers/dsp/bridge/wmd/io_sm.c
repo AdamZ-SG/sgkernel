@@ -49,10 +49,6 @@
 #include <dspbridge/host_os.h>
 #include <linux/workqueue.h>
 
-#ifdef CONFIG_BRIDGE_DVFS
-#include <mach/omap-pm.h>
-#endif
-
 /*  ----------------------------------- DSP/BIOS Bridge */
 #include <dspbridge/std.h>
 #include <dspbridge/dbdefs.h>
@@ -81,11 +77,13 @@
 #include <_tiomap.h>
 #include <tiomap_io.h>
 #include <_tiomap_pwr.h>
+#include <tiomap_io.h>
 
 /*  ----------------------------------- Platform Manager */
 #include <dspbridge/cod.h>
 #include <dspbridge/dev.h>
 #include <dspbridge/chnl_sm.h>
+#include <dspbridge/dbreg.h>
 
 /*  ----------------------------------- Others */
 #include <dspbridge/rms_sh.h>
@@ -180,6 +178,13 @@ static DSP_STATUS registerSHMSegs(struct IO_MGR *hIOMgr,
 				  struct COD_MANAGER *hCodMan,
 				  u32 dwGPPBasePA);
 
+#ifdef CONFIG_BRIDGE_DVFS
+/* The maximum number of OPPs that are supported */
+extern s32 dsp_max_opps;
+/* The Vdd1 opp table information */
+extern u32 vdd1_dsp_freq[6][4] ;
+#endif
+
 #if GT_TRACE
 static struct GT_Mask dsp_trace_mask = { NULL, NULL }; /* GT trace variable */
 #endif
@@ -201,24 +206,20 @@ DSP_STATUS WMD_IO_Create(OUT struct IO_MGR **phIOMgr,
 	struct CHNL_MGR *hChnlMgr;
        static int ref_count;
 	u32 devType;
-	/* Check requirements:  */
-	if (!phIOMgr || !pMgrAttrs || pMgrAttrs->uWordSize == 0) {
-		status = DSP_EHANDLE;
-		goto func_end;
-	}
+	/* Check DBC requirements:  */
+	DBC_Require(phIOMgr != NULL);
+	DBC_Require(pMgrAttrs != NULL);
+	DBC_Require(pMgrAttrs->uWordSize != 0);
+	/* This for the purposes of DBC_Require: */
 	status = DEV_GetChnlMgr(hDevObject, &hChnlMgr);
-	if (status == DSP_EHANDLE || !hChnlMgr || hChnlMgr->hIOMgr) {
-		status = DSP_EHANDLE;
-		goto func_end;
-	}
+	DBC_Require(status != DSP_EHANDLE);
+	DBC_Require(hChnlMgr != NULL);
+	DBC_Require(hChnlMgr->hIOMgr == NULL);
 	 /*  Message manager will be created when a file is loaded, since
 	 *  size of message buffer in shared memory is configurable in
 	 *  the base image.  */
 	DEV_GetWMDContext(hDevObject, &hWmdContext);
-	if(!hWmdContext) {
-		status = DSP_EHANDLE;
-		goto func_end;
-	}
+	DBC_Assert(hWmdContext);
 	DEV_GetDevType(hDevObject, &devType);
 	/*  DSP shared memory area will get set properly when
 	 *  a program is loaded. They are unknown until a COFF file is
@@ -281,7 +282,6 @@ DSP_STATUS WMD_IO_Create(OUT struct IO_MGR **phIOMgr,
 		pIOMgr->fSharedIRQ = pMgrAttrs->fShared;
 		IO_DisableInterrupt(hWmdContext);
 		if (devType == DSP_UNIT) {
-			HW_MBOX_initSettings(hostRes.dwMboxBase);
 			/* Plug the channel ISR:. */
                        if ((request_irq(INT_MAIL_MPU_IRQ, IO_ISR, 0,
                                "DspBridge\tmailbox", (void *)pIOMgr)) == 0)
@@ -306,7 +306,6 @@ func_cont:
 		hChnlMgr->hIOMgr = pIOMgr;
 		*phIOMgr = pIOMgr;
 	}
-func_end:
 	return status;
 }
 
@@ -322,15 +321,14 @@ DSP_STATUS WMD_IO_Destroy(struct IO_MGR *hIOMgr)
 	if (MEM_IsValidHandle(hIOMgr, IO_MGRSIGNATURE)) {
 		/* Unplug IRQ:    */
                /* Disable interrupts from the board:  */
-		status = DEV_GetWMDContext(hIOMgr->hDevObject, &hWmdContext);
-		if (DSP_SUCCEEDED(status))
-			(void)CHNLSM_DisableInterrupt(hWmdContext);
-
-		destroy_workqueue(bridge_workqueue);
-		/* Linux function to uninstall ISR */
-		free_irq(INT_MAIL_MPU_IRQ, (void *)hIOMgr);
-		if (hIOMgr->hDPC)
-			(void)DPC_Destroy(hIOMgr->hDPC);
+               if (DSP_SUCCEEDED(DEV_GetWMDContext(hIOMgr->hDevObject,
+                      &hWmdContext)))
+                               DBC_Assert(hWmdContext);
+               (void)CHNLSM_DisableInterrupt(hWmdContext);
+               destroy_workqueue(bridge_workqueue);
+               /* Linux function to uninstall ISR */
+               free_irq(INT_MAIL_MPU_IRQ, (void *)hIOMgr);
+               (void)DPC_Destroy(hIOMgr->hDPC);
 #ifndef DSP_TRACEBUF_DISABLED
 		if (hIOMgr->pMsg)
 			MEM_Free(hIOMgr->pMsg);
@@ -390,17 +388,13 @@ DSP_STATUS WMD_IO_OnLoaded(struct IO_MGR *hIOMgr)
 			   HW_PAGE_SIZE_64KB, HW_PAGE_SIZE_4KB };
 
 	status = DEV_GetCodMgr(hIOMgr->hDevObject, &hCodMan);
-	if (DSP_FAILED(status))
-		goto func_end;
+	DBC_Assert(DSP_SUCCEEDED(status));
 	hChnlMgr = hIOMgr->hChnlMgr;
 	 /*  The message manager is destroyed when the board is stopped.  */
 	DEV_GetMsgMgr(hIOMgr->hDevObject, &hIOMgr->hMsgMgr);
 	hMsgMgr = hIOMgr->hMsgMgr;
-	if (!MEM_IsValidHandle(hChnlMgr, CHNL_MGRSIGNATURE) ||
-	   !MEM_IsValidHandle(hMsgMgr, MSGMGR_SIGNATURE)) {
-		status = DSP_EMEMORY;
-		goto func_end;
-	}
+	DBC_Assert(MEM_IsValidHandle(hChnlMgr, CHNL_MGRSIGNATURE));
+	DBC_Assert(MEM_IsValidHandle(hMsgMgr, MSGMGR_SIGNATURE));
 	if (hIOMgr->pSharedMem)
 		hIOMgr->pSharedMem = NULL;
 
@@ -553,8 +547,7 @@ func_cont1:
 				status = hIOMgr->pIntfFxns->pfnBrdMemMap
 					(hIOMgr->hWmdContext, paCurr, vaCurr,
 					pgSize[i], mapAttrs);
-				if (DSP_FAILED(status))
-					goto func_end;
+				DBC_Assert(DSP_SUCCEEDED(status));
 				paCurr += pgSize[i];
 				vaCurr += pgSize[i];
 				gppVaCurr += pgSize[i];
@@ -615,9 +608,7 @@ func_cont1:
 					 aEProc[ndx].ulGppVa,
 					 aEProc[ndx].ulDspVa *
 					 hIOMgr->uWordSize, pgSize[i]);
-				if (DSP_FAILED(status)) {
-					goto func_end;
-				}
+				DBC_Assert(DSP_SUCCEEDED(status));
 			}
 			paCurr += pgSize[i];
 			vaCurr += pgSize[i];
@@ -714,12 +705,9 @@ func_cont:
 		if ((hIOMgr->extProcInfo.tyTlb[0].ulGppPhys == 0) ||
 		   (uNumProcs != 1)) {
 			status = CHNL_E_NOMEMMAP;
-			goto func_end;
+			DBC_Assert(false);
 		} else {
-			if (aEProc[0].ulDspVa > ulShmBase) {
-				status = DSP_EFAIL;
-				goto func_end;
-			}
+			DBC_Assert(aEProc[0].ulDspVa <= ulShmBase);
 			/* ulShmBase may not be at ulDspVa address */
 			ulShmBaseOffset = (ulShmBase - aEProc[0].ulDspVa) *
 			    hIOMgr->uWordSize;
@@ -727,10 +715,8 @@ func_cont:
 			 *   _BRD_Start() the MMU will be re-programed with MMU
 			 *   DSPVa-GPPPa pair info while DSP is in a known
 			 *   (reset) state.  */
-			if (!hIOMgr->pIntfFxns || !hIOMgr->hWmdContext)	{
-				status = DSP_EHANDLE;
-				goto func_end;
-			}
+			DBC_Assert(hIOMgr->pIntfFxns != NULL);
+			DBC_Assert(hIOMgr->hWmdContext != NULL);
 			status = hIOMgr->pIntfFxns->pfnDevCntrl(hIOMgr->
 				 hWmdContext, WMDIOCTL_SETMMUCONFIG, aEProc);
 			ulShmBase = hIOMgr->extProcInfo.tyTlb[0].ulGppPhys;
@@ -740,10 +726,6 @@ func_cont:
 			ulShmBase += ulShmBaseOffset;
 			ulShmBase = (u32)MEM_LinearAddress((void *)ulShmBase,
 				    ulMemLength);
-			if (ulShmBase == 0) {
-				status = DSP_EFAIL;
-				goto func_end;
-			}
 			DBC_Assert(ulShmBase != 0);
 			if (DSP_SUCCEEDED(status)) {
 				status = registerSHMSegs(hIOMgr, hCodMan,
@@ -842,7 +824,6 @@ func_cont:
     }
 #endif
 	IO_EnableInterrupt(hIOMgr->hWmdContext);
-func_end:
 	return status;
 }
 
@@ -852,10 +833,9 @@ func_end:
  */
 u32 IO_BufSize(struct IO_MGR *hIOMgr)
 {
-	if (MEM_IsValidHandle(hIOMgr, IO_MGRSIGNATURE))
-		return hIOMgr->uSMBufSize;
-	else
-		return 0;
+	DBC_Require(MEM_IsValidHandle(hIOMgr, IO_MGRSIGNATURE));
+
+	return hIOMgr->uSMBufSize;
 }
 
 /*
@@ -867,8 +847,7 @@ void IO_CancelChnl(struct IO_MGR *hIOMgr, u32 ulChnl)
 	struct IO_MGR *pIOMgr = (struct IO_MGR *)hIOMgr;
 	struct SHM *sm;
 
-	if (!MEM_IsValidHandle(hIOMgr, IO_MGRSIGNATURE))
-		goto func_end;
+	DBC_Require(MEM_IsValidHandle(hIOMgr, IO_MGRSIGNATURE));
 	sm = hIOMgr->pSharedMem;
 
 	/* Inform DSP that we have no more buffers on this channel:  */
@@ -876,8 +855,6 @@ void IO_CancelChnl(struct IO_MGR *hIOMgr, u32 ulChnl)
 		   (~(1 << ulChnl)));
 
 	CHNLSM_InterruptDSP2(pIOMgr->hWmdContext, MBX_PCPY_CLASS);
-func_end:
-	return;
 }
 
 /*
@@ -887,20 +864,16 @@ func_end:
 static void IO_DispatchChnl(IN struct IO_MGR *pIOMgr,
 			   IN OUT struct CHNL_OBJECT *pChnl, u32 iMode)
 {
-	if (!MEM_IsValidHandle(pIOMgr, IO_MGRSIGNATURE))
-		goto func_end;
+	DBC_Require(MEM_IsValidHandle(pIOMgr, IO_MGRSIGNATURE));
 
 	DBG_Trace(DBG_LEVEL3, "Entering IO_DispatchChnl \n");
 
 	/* See if there is any data available for transfer: */
-	if (iMode != IO_SERVICE)
-		goto func_end;
+	DBC_Assert(iMode == IO_SERVICE);
 
 	/* Any channel will do for this mode: */
 	InputChnl(pIOMgr, pChnl, iMode);
 	OutputChnl(pIOMgr, pChnl, iMode);
-func_end:
-	return;
 }
 
 /*
@@ -909,16 +882,13 @@ func_end:
  */
 static void IO_DispatchMsg(IN struct IO_MGR *pIOMgr, struct MSG_MGR *hMsgMgr)
 {
-	if (!MEM_IsValidHandle(pIOMgr, IO_MGRSIGNATURE))
-		goto func_end;
+	DBC_Require(MEM_IsValidHandle(pIOMgr, IO_MGRSIGNATURE));
 
 	DBG_Trace(DBG_LEVEL3, "Entering IO_DispatchMsg \n");
 
 	/*  We are performing both input and output processing. */
 	InputMsg(pIOMgr, hMsgMgr);
 	OutputMsg(pIOMgr, hMsgMgr);
-func_end:
-	return;
 }
 
 /*
@@ -931,6 +901,8 @@ static void IO_DispatchPM(struct work_struct *work)
                                container_of(work, struct IO_MGR, io_workq);
 	DSP_STATUS status;
 	u32 pArg[2];
+
+       /*DBC_Require(MEM_IsValidHandle(pIOMgr, IO_MGRSIGNATURE));*/
 
 	DBG_Trace(DBG_LEVEL7, "IO_DispatchPM: Entering IO_DispatchPM : \n");
 
@@ -996,13 +968,11 @@ void IO_DPC(IN OUT void *pRefData)
 	struct MSG_MGR *pMsgMgr;
 	struct DEH_MGR *hDehMgr;
 
-	if (!MEM_IsValidHandle(pIOMgr, IO_MGRSIGNATURE))
-		goto func_end;
+	DBC_Require(MEM_IsValidHandle(pIOMgr, IO_MGRSIGNATURE));
 	pChnlMgr = pIOMgr->hChnlMgr;
 	DEV_GetMsgMgr(pIOMgr->hDevObject, &pMsgMgr);
 	DEV_GetDehMgr(pIOMgr->hDevObject, &hDehMgr);
-	if (!MEM_IsValidHandle(pChnlMgr, CHNL_MGRSIGNATURE))
-		goto func_end;
+	DBC_Require(MEM_IsValidHandle(pChnlMgr, CHNL_MGRSIGNATURE));
 	DBG_Trace(DBG_LEVEL7, "Entering IO_DPC(0x%x)\n", pRefData);
 	/* Check value of interrupt register to ensure it is a valid error */
 	if ((pIOMgr->wIntrVal > DEH_BASE) && (pIOMgr->wIntrVal < DEH_LIMIT)) {
@@ -1013,8 +983,10 @@ void IO_DPC(IN OUT void *pRefData)
 	}
 	IO_DispatchChnl(pIOMgr, NULL, IO_SERVICE);
 #ifdef CHNL_MESSAGES
-	if (MEM_IsValidHandle(pMsgMgr, MSGMGR_SIGNATURE))
+	if (pMsgMgr) {
+		DBC_Require(MEM_IsValidHandle(pMsgMgr, MSGMGR_SIGNATURE));
 		IO_DispatchMsg(pIOMgr, pMsgMgr);
+	}
 #endif
 #ifndef DSP_TRACEBUF_DISABLED
 	if (pIOMgr->wIntrVal & MBX_DBG_CLASS) {
@@ -1027,8 +999,6 @@ void IO_DPC(IN OUT void *pRefData)
 #ifndef DSP_TRACEBUF_DISABLED
 	PrintDSPDebugTrace(pIOMgr);
 #endif
-func_end:
-	return;
 }
 
 
@@ -1042,9 +1012,8 @@ irqreturn_t IO_ISR(int irq, IN void *pRefData)
 {
 	struct IO_MGR *hIOMgr = (struct IO_MGR *)pRefData;
 	bool fSchedDPC;
-	if (irq != INT_MAIL_MPU_IRQ ||
-	   !MEM_IsValidHandle(hIOMgr, IO_MGRSIGNATURE))
-		return IRQ_NONE;
+       DBC_Require(irq == INT_MAIL_MPU_IRQ);
+	DBC_Require(MEM_IsValidHandle(hIOMgr, IO_MGRSIGNATURE));
 	DBG_Trace(DBG_LEVEL3, "Entering IO_ISR(0x%x)\n", pRefData);
 
 	/* Call WMD's CHNLSM_ISR() to see if interrupt is ours, and process. */
@@ -1085,9 +1054,8 @@ void IO_RequestChnl(struct IO_MGR *pIOMgr, struct CHNL_OBJECT *pChnl,
 {
 	struct CHNL_MGR *pChnlMgr;
 	struct SHM *sm;
-
-	if (!pChnl || !pwMbVal)
-		goto func_end;
+	DBC_Require(pChnl != NULL);
+	DBC_Require(pwMbVal != NULL);
 	pChnlMgr = pIOMgr->hChnlMgr;
 	sm = pIOMgr->pSharedMem;
 	if (iMode == IO_INPUT) {
@@ -1110,8 +1078,6 @@ void IO_RequestChnl(struct IO_MGR *pIOMgr, struct CHNL_OBJECT *pChnl,
 	} else {
 		DBC_Assert(iMode); 	/* Shouldn't get here. */
 	}
-func_end:
-	return;
 }
 
 /*
@@ -1120,8 +1086,8 @@ func_end:
  */
 void IO_Schedule(struct IO_MGR *pIOMgr)
 {
-	if(!MEM_IsValidHandle(pIOMgr, IO_MGRSIGNATURE))
-		return;
+	DBC_Require(MEM_IsValidHandle(pIOMgr, IO_MGRSIGNATURE));
+
 	tiomap3430_bump_dsp_opp_level();
 	DPC_Schedule(pIOMgr->hDPC);
 }
@@ -1142,8 +1108,7 @@ static u32 FindReadyOutput(struct CHNL_MGR *pChnlMgr,
 
 	id = (pChnl != NULL ? pChnl->uId : (pChnlMgr->dwLastOutput + 1));
 	id = ((id == CHNL_MAXCHANNELS) ? 0 : id);
-	if (id >= CHNL_MAXCHANNELS)
-		goto func_end;
+	DBC_Assert(id < CHNL_MAXCHANNELS);
 	if (dwMask) {
 		shift = (1 << id);
 		startId = id;
@@ -1160,7 +1125,7 @@ static u32 FindReadyOutput(struct CHNL_MGR *pChnlMgr,
 			shift = (1 << id);
 		} while (id != startId);
 	}
-func_end:
+	DBC_Ensure((uRetval == OUTPUTNOTREADY) || (uRetval < CHNL_MAXCHANNELS));
 	return uRetval;
 }
 
@@ -1208,8 +1173,7 @@ static void InputChnl(struct IO_MGR *pIOMgr, struct CHNL_OBJECT *pChnl,
 				 pIORequests);
 			if (pChirp) {
 				pChnl->cIOReqs--;
-				if (pChnl->cIOReqs < 0)
-					goto func_end;
+				DBC_Assert(pChnl->cIOReqs >= 0);
 				/* Ensure we don't overflow the client's
 				 * buffer: */
 				uBytes = min(uBytes, pChirp->cBytes);
@@ -1228,8 +1192,8 @@ static void InputChnl(struct IO_MGR *pIOMgr, struct CHNL_OBJECT *pChnl,
 					/* This assertion fails if the DSP
 					 * sends EOS more than once on this
 					 * channel: */
-					if (pChnl->dwState & CHNL_STATEEOS)
-						goto func_end;
+					DBC_Assert(!(pChnl->dwState &
+						  CHNL_STATEEOS));
 					 /* Zero bytes indicates EOS. Update
 					  * IOC status for this chirp, and also
 					  * the channel state: */
@@ -1301,8 +1265,8 @@ static void InputMsg(struct IO_MGR *pIOMgr, struct MSG_MGR *hMsgMgr)
 	fInputEmpty = IO_GetValue(pIOMgr->hWmdContext, struct MSG, pCtrl,
 				 bufEmpty);
 	uMsgs = IO_GetValue(pIOMgr->hWmdContext, struct MSG, pCtrl, size);
-	if (fInputEmpty || uMsgs > hMsgMgr->uMaxMsgs)
-		goto func_end;
+	if (fInputEmpty)
+		return;
 
 	pMsgInput = pIOMgr->pMsgInput;
 	for (i = 0; i < uMsgs; i++) {
@@ -1397,10 +1361,8 @@ static void NotifyChnlComplete(struct CHNL_OBJECT *pChnl,
 {
 	bool fSignalEvent;
 
-	if (!MEM_IsValidHandle(pChnl, CHNL_SIGNATURE) || !pChnl->hSyncEvent ||
-	   !pChnl->pIOCompletions || !pChirp)
-		goto func_end;
-
+	DBC_Require(MEM_IsValidHandle(pChnl, CHNL_SIGNATURE));
+	DBC_Require(pChnl->hSyncEvent != NULL);
 	 /*  Note: we signal the channel event only if the queue of IO
 	  *  completions is empty.  If it is not empty, the event is sure to be
 	  *  signalled by the only IO completion list consumer:
@@ -1409,17 +1371,13 @@ static void NotifyChnlComplete(struct CHNL_OBJECT *pChnl,
 	/* Enqueue the IO completion info for the client: */
 	LST_PutTail(pChnl->pIOCompletions, (struct LST_ELEM *) pChirp);
 	pChnl->cIOCs++;
-
-	if (pChnl->cIOCs > pChnl->cChirps)
-		goto func_end;
+	DBC_Assert(pChnl->cIOCs <= pChnl->cChirps);
 	/* Signal the channel event (if not already set) that IO is complete: */
 	if (fSignalEvent)
 		SYNC_SetEvent(pChnl->hSyncEvent);
 
 	/* Notify that IO is complete */
 	NTFY_Notify(pChnl->hNtfy, DSP_STREAMIOCOMPLETION);
-func_end:
-	return;
 }
 
 /*
@@ -1616,19 +1574,13 @@ static DSP_STATUS registerSHMSegs(struct IO_MGR *hIOMgr,
 	/* Read address and size info for first SM region.*/
 	/* Get start of 1st SM Heap region */
 	status = COD_GetSymValue(hCodMan, SHM0_SHARED_BASE_SYM, &ulShm0_Base);
-	if (ulShm0_Base == 0) {
-		status = DSP_EFAIL;
-		goto func_end;
-	}
+	DBC_Assert(ulShm0_Base != 0);
 	/* Get end of 1st SM Heap region */
 	if (DSP_SUCCEEDED(status)) {
 		/* Get start and length of message part of shared memory */
 		status = COD_GetSymValue(hCodMan, SHM0_SHARED_END_SYM,
 					 &ulShm0_End);
-		if (ulShm0_End == 0) {
-			status = DSP_EFAIL;
-			goto func_end;
-		}
+		DBC_Assert(ulShm0_End != 0);
 	}
 	/* start of Gpp reserved region */
 	if (DSP_SUCCEEDED(status)) {
@@ -1637,10 +1589,7 @@ static DSP_STATUS registerSHMSegs(struct IO_MGR *hIOMgr,
 					&ulShm0_RsrvdStart);
 		DBG_Trace(DBG_LEVEL1, "***ulShm0_RsrvdStart  0x%x \n",
 			 ulShm0_RsrvdStart);
-		if (ulShm0_RsrvdStart == 0) {
-			status = DSP_EFAIL;
-			goto func_end;
-		}
+		DBC_Assert(ulShm0_RsrvdStart != 0);
 	}
 	/* Register with CMM */
 	if (DSP_SUCCEEDED(status)) {
@@ -1662,17 +1611,11 @@ static DSP_STATUS registerSHMSegs(struct IO_MGR *hIOMgr,
 		/* calc size (bytes) of SM the GPP can alloc from */
 		ulRsrvdSize = (ulShm0_End - ulShm0_RsrvdStart + 1) * hIOMgr->
 			      uWordSize;
-		if (ulRsrvdSize <= 0) {
-			status = DSP_EFAIL;
-			goto func_end;
-		}
+		DBC_Assert(ulRsrvdSize > 0);
 		/* calc size of SM DSP can alloc from */
 		ulDSPSize = (ulShm0_RsrvdStart - ulShm0_Base) * hIOMgr->
 			uWordSize;
-		if (ulDSPSize <= 0) {
-			status = DSP_EFAIL;
-			goto func_end;
-		}
+		DBC_Assert(ulDSPSize > 0);
 		/*  First TLB entry reserved for Bridge SM use.*/
 		ulGppPhys = hIOMgr->extProcInfo.tyTlb[0].ulGppPhys;
 		/* get size in bytes */
@@ -1685,10 +1628,7 @@ static DSP_STATUS registerSHMSegs(struct IO_MGR *hIOMgr,
 		else
 			dwOffset = ulDspVirt - dwGPPBasePA;
 
-		if (ulShm0_RsrvdStart * hIOMgr->uWordSize < ulDspVirt) {
-			status = DSP_EFAIL;
-			goto func_end;
-		}
+		DBC_Assert(ulShm0_RsrvdStart * hIOMgr->uWordSize >= ulDspVirt);
 		/* calc Gpp phys base of SM region */
 		/* Linux - this is actually uncached kernel virtual address*/
 		dwGPPBaseVA = ulGppPhys + ulShm0_RsrvdStart * hIOMgr->uWordSize
@@ -1708,10 +1648,8 @@ static DSP_STATUS registerSHMSegs(struct IO_MGR *hIOMgr,
 				 "Seg 0 \n");
 		}
 		/* first SM region is segId = 1 */
-		if (ulShmSegId0 != 1)
-			status = DSP_EFAIL;
+		DBC_Assert(ulShmSegId0 == 1);
 	}
-func_end:
 	return status;
 }
 
@@ -1751,9 +1689,7 @@ DSP_STATUS IO_SHMsetting(IN struct IO_MGR *hIOMgr, IN enum SHM_DESCTYPE desc,
 			 IN void *pArgs)
 {
 #ifdef CONFIG_BRIDGE_DVFS
-	struct omap_opp *dsp_opp_table;
-	u32 i, val;
-	u8 vdd1_max_opps, dsp_max_opps = 0;
+	u32 i;
 	struct dspbridge_platform_data *pdata =
 				omap_dspbridge_dev->dev.platform_data;
 
@@ -1769,54 +1705,28 @@ DSP_STATUS IO_SHMsetting(IN struct IO_MGR *hIOMgr, IN enum SHM_DESCTYPE desc,
 	case SHM_OPPINFO:
 		/* Update the shared memory with the voltage, frequency,
 				   min and max frequency values for an OPP */
-		if (!pdata || !pdata->dsp_get_rate_table)
-			break;
-
-		vdd1_max_opps = omap_pm_get_max_vdd1_opp();
-		dsp_opp_table = (*pdata->dsp_get_rate_table)();
-
-		for (i = 0; i <= vdd1_max_opps; i++) {
+		for (i = 0; i <= dsp_max_opps; i++) {
 			hIOMgr->pSharedMem->oppTableStruct.oppPoint[i].voltage =
-				dsp_opp_table[i].vsel;
+				vdd1_dsp_freq[i][0];
 			DBG_Trace(DBG_LEVEL5, "OPP shared memory -voltage: "
 				 "%d\n", hIOMgr->pSharedMem->oppTableStruct.
 				 oppPoint[i].voltage);
 			hIOMgr->pSharedMem->oppTableStruct.oppPoint[i].
-				frequency = dsp_opp_table[i].rate / 1000;
+				frequency = vdd1_dsp_freq[i][1];
 			DBG_Trace(DBG_LEVEL5, "OPP shared memory -frequency: "
 				 "%d\n", hIOMgr->pSharedMem->oppTableStruct.
 				 oppPoint[i].frequency);
-			if (!i)
-				val = 0;
-			else if (dsp_opp_table[i].rate ==
-					dsp_opp_table[i - 1].rate) {
-				val = hIOMgr->pSharedMem->oppTableStruct.
-					oppPoint[i - 1].minFreq;
-			} else{
-				val = dsp_opp_table[i - 1].rate / 100000 * 88;
-				val -= val % 1000;
-			}
-			hIOMgr->pSharedMem->oppTableStruct.oppPoint[i].
-					minFreq = val;
+			hIOMgr->pSharedMem->oppTableStruct.oppPoint[i].minFreq =
+				vdd1_dsp_freq[i][2];
 			DBG_Trace(DBG_LEVEL5, "OPP shared memory -min value: "
 				 "%d\n", hIOMgr->pSharedMem->oppTableStruct.
 				  oppPoint[i].minFreq);
-			val = dsp_opp_table[i].rate;
-			if (val != dsp_opp_table[vdd1_max_opps].rate) {
-				val = (val / 100) * 95;
-				val -= val % 1000;
-			}
-
-			hIOMgr->pSharedMem->oppTableStruct.oppPoint[i].
-				maxFreq = val / 1000;
+			hIOMgr->pSharedMem->oppTableStruct.oppPoint[i].maxFreq =
+				vdd1_dsp_freq[i][3];
 			DBG_Trace(DBG_LEVEL5, "OPP shared memory -max value: "
 				 "%d\n", hIOMgr->pSharedMem->oppTableStruct.
 				 oppPoint[i].maxFreq);
-			if (!dsp_max_opps && dsp_opp_table[i].rate ==
-					dsp_opp_table[vdd1_max_opps].rate)
-				dsp_max_opps = i;
 		}
-
 		hIOMgr->pSharedMem->oppTableStruct.numOppPts = dsp_max_opps;
 		DBG_Trace(DBG_LEVEL5, "OPP shared memory - max OPP number: "
 			 "%d\n", hIOMgr->pSharedMem->oppTableStruct.numOppPts);

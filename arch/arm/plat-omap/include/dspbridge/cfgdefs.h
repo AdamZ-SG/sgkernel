@@ -90,7 +90,7 @@
 		void __iomem *dwPrmBase;
 		void __iomem *dwCmBase;
 		void __iomem *dwPerBase;
-		void __iomem *dwPerPmBase;
+		u32 dwPerPmBase;
 		u32 dwCorePmBase;
 		void __iomem *dwWdTimerDspBase;
 		void __iomem *dwMboxBase;

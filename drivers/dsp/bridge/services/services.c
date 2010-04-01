@@ -44,8 +44,10 @@
 
 /*  ----------------------------------- OS Adaptation Layer */
 #include <dspbridge/cfg.h>
+#include <dspbridge/csl.h>
 #include <dspbridge/dbg.h>
 #include <dspbridge/dpc.h>
+#include <dspbridge/kfile.h>
 #include <dspbridge/list.h>
 #include <dspbridge/mem.h>
 #include <dspbridge/ntfy.h>
@@ -84,8 +86,10 @@ void SERVICES_Exit(void)
 		CLK_Exit();
 		REG_Exit();
 		LST_Exit();
+		KFILE_Exit();
 		DPC_Exit();
 		DBG_Exit();
+		CSL_Exit();
 		CFG_Exit();
 		MEM_Exit();
 
@@ -103,7 +107,7 @@ void SERVICES_Exit(void)
 bool SERVICES_Init(void)
 {
 	bool fInit = true;
-	bool fCFG, fDBG, fDPC, fLST, fMEM;
+	bool fCFG, fCSL, fDBG, fDPC, fKFILE, fLST, fMEM;
 	bool fREG, fSYNC, fCLK, fNTFY;
 
 	DBC_Require(cRefs >= 0);
@@ -117,17 +121,19 @@ bool SERVICES_Init(void)
 			 "SERVICES_Init: entered\n");
 
 		/* Perform required initialization of SERVICES modules. */
-		fMEM = MEM_Init();
 		fSYNC = SYNC_Init();
+		fMEM = MEM_Init();
 		fREG = REG_Init();
 		fCFG = CFG_Init();
+		fCSL = CSL_Init();
 		fDBG = DBG_Init();
 		fDPC = DPC_Init();
+		fKFILE = KFILE_Init();
 		fLST = LST_Init();
 		fCLK  = CLK_Init();
 		fNTFY = NTFY_Init();
 
-		fInit = fCFG && fDBG && fDPC &&
+		fInit = fCFG && fCSL && fDBG && fDPC && fKFILE &&
 			fLST && fMEM && fREG && fSYNC && fCLK;
 
 		if (!fInit) {
@@ -146,11 +152,17 @@ bool SERVICES_Init(void)
 			if (fLST)
 				LST_Exit();
 
+			if (fKFILE)
+				KFILE_Exit();
+
 			if (fDPC)
 				DPC_Exit();
 
 			if (fDBG)
 				DBG_Exit();
+
+			if (fCSL)
+				CSL_Exit();
 
 			if (fCFG)
 				CFG_Exit();

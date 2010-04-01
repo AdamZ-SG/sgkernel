@@ -62,7 +62,6 @@
 #define OMAP3430_ISP_MMU_BASE		(OMAP3430_ISP_BASE + 0x1400)
 #define OMAP3430_ISP_CSI2A_BASE		(OMAP3430_ISP_BASE + 0x1800)
 #define OMAP3430_ISP_CSI2PHY_BASE	(OMAP3430_ISP_BASE + 0x1970)
-#define OMAP3430_ISP_CSI2PHY2_BASE      (OMAP3430_ISP_BASE + 0x1D70)
 
 #define OMAP3430_ISP_END		(OMAP3430_ISP_BASE         + 0x06F)
 #define OMAP3430_ISP_CBUFF_END		(OMAP3430_ISP_CBUFF_BASE   + 0x077)
@@ -76,7 +75,6 @@
 #define OMAP3430_ISP_MMU_END		(OMAP3430_ISP_MMU_BASE     + 0x06F)
 #define OMAP3430_ISP_CSI2A_END		(OMAP3430_ISP_CSI2A_BASE   + 0x16F)
 #define OMAP3430_ISP_CSI2PHY_END	(OMAP3430_ISP_CSI2PHY_BASE + 0x007)
-#define OMAP3430_ISP_CSI2PHY2_END       (OMAP3430_ISP_CSI2PHY2_BASE + 0x007)
 
 #define OMAP34XX_IVA_INTC_BASE	0x40000000
 #define OMAP34XX_HSUSB_OTG_BASE	(L4_34XX_BASE + 0xAB000)
@@ -114,8 +112,8 @@
 #define VDD1_OPP3	0x3
 #define VDD1_OPP4	0x4
 #define VDD1_OPP5	0x5
-#define VDD1_OPP6	0x6
 #if defined(CONFIG_MACH_SHOLES_OPP7)
+#define VDD1_OPP6	0x6
 #define VDD1_OPP7	0x7
 #endif
 
@@ -124,21 +122,16 @@
 #define VDD2_OPP1	0x1
 #define VDD2_OPP2	0x2
 #define VDD2_OPP3	0x3
-#define VDD2_OPP4	0x4
 
-#define MIN_VDD1_OPP	(omap_pm_get_min_vdd1_opp())
-/* Temporary Definition for MACH_SHOLES_OPP7 *
- * TODO: Modify overclock code and fix this  */
+#define MIN_VDD1_OPP	VDD1_OPP1
+#if defined(CONFIG_MACH_SHOLES_OPP5)
+#define MAX_VDD1_OPP	VDD1_OPP5
+#endif
 #if defined(CONFIG_MACH_SHOLES_OPP7)
 #define MAX_VDD1_OPP	VDD1_OPP7
 #endif
-#if defined(CONFIG_MACH_SHOLES_OPP5)
-#define MAX_VDD1_OPP	(omap_pm_get_max_vdd1_opp())
-#endif
-/* TODO */
-#define MIN_VDD2_OPP	(omap_pm_get_min_vdd2_opp())
-#define MAX_VDD2_OPP	(omap_pm_get_max_vdd2_opp())
-#define VDD1_THRESHOLD  MAX_VDD2_OPP
+#define MIN_VDD2_OPP	VDD2_OPP1
+#define MAX_VDD2_OPP	VDD2_OPP3
 
 #endif /* __ASM_ARCH_OMAP34XX_H */
 

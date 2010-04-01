@@ -106,6 +106,7 @@
 
 /*  ----------------------------------- OS Adaptation Layer */
 #include <dspbridge/cfg.h>
+#include <dspbridge/csl.h>
 #include <dspbridge/list.h>
 #include <dspbridge/mem.h>
 #include <dspbridge/proc.h>
@@ -146,6 +147,7 @@
 #ifndef RES_CLEANUP_DISABLE
 #include <dspbridge/drv.h>
 #include <dspbridge/drvdefs.h>
+#include <dspbridge/dbreg.h>
 #include <dspbridge/resourcecleanup.h>
 #endif
 
@@ -320,8 +322,7 @@ static struct DSP_BUFFERATTR NODE_DFLTBUFATTRS = {
 	0, 			/* uAlignment */
 };
 
-static void DeleteNode(struct NODE_OBJECT *hNode,
-		struct PROCESS_CONTEXT *pr_ctxt);
+static void DeleteNode(struct NODE_OBJECT *hNode);
 static void DeleteNodeMgr(struct NODE_MGR *hNodeMgr);
 static void FillStreamConnect(struct NODE_OBJECT *hNode1,
 			     struct NODE_OBJECT *hNode2, u32 uStream1,
@@ -388,8 +389,7 @@ DSP_STATUS NODE_Allocate(struct PROC_OBJECT *hProcessor,
 			IN CONST struct DSP_UUID *pNodeId,
 			OPTIONAL IN CONST struct DSP_CBDATA *pArgs,
 			OPTIONAL IN CONST struct DSP_NODEATTRIN *pAttrIn,
-			OUT struct NODE_OBJECT **phNode,
-			struct PROCESS_CONTEXT *pr_ctxt)
+			OUT struct NODE_OBJECT **phNode)
 {
 	struct NODE_MGR *hNodeMgr;
 	struct DEV_OBJECT *hDevObject;
@@ -402,6 +402,7 @@ DSP_STATUS NODE_Allocate(struct PROC_OBJECT *hProcessor,
 	DSP_STATUS status = DSP_SOK;
 	struct CMM_OBJECT *hCmmMgr = NULL; /* Shared memory manager hndl */
 	u32 procId;
+	char *label;
 	u32 pulValue;
 	u32 dynextBase;
 	u32 offSet = 0;
@@ -417,7 +418,11 @@ DSP_STATUS NODE_Allocate(struct PROC_OBJECT *hProcessor,
 #endif
 
 #ifndef RES_CLEANUP_DISABLE
+	HANDLE	     hDrvObject;
 	HANDLE	     nodeRes;
+       u32                  hProcess;
+	struct PROCESS_CONTEXT   *pPctxt = NULL;
+	DSP_STATUS res_status = DSP_SOK;
 #endif
 
 	DBC_Require(cRefs > 0);
@@ -559,7 +564,7 @@ func_cont:
 	status = PROC_Map(hProcessor, (void *)pAttrIn->pGPPVirtAddr,
 			pNode->createArgs.asa.taskArgs.uHeapSize,
 			(void *)pNode->createArgs.asa.taskArgs.uDSPHeapResAddr,
-			(void **)&pMappedAddr, mapAttrs, pr_ctxt);
+			(void **)&pMappedAddr, mapAttrs);
 	if (DSP_FAILED(status)) {
 		GT_1trace(NODE_debugMask, GT_5CLASS,
 			 "NODE_Allocate: Failed to map memory"
@@ -688,16 +693,18 @@ func_cont2:
 		}
 	}
 
-	/* Compare value read from Node Properties and check if it is same as
+	/* Comapare value read from Node Properties and check if it is same as
 	 * STACKSEGLABEL, if yes read the Address of STACKSEGLABEL, calculate
 	 * GPP Address, Read the value in that address and override the
 	 * uStackSeg value in task args */
 	if (DSP_SUCCEEDED(status) &&
 	   (char *)pNode->dcdProps.objData.nodeObj.ndbProps.uStackSegName !=
 	   NULL) {
-		if (strcmp((char *)
-		    pNode->dcdProps.objData.nodeObj.ndbProps.uStackSegName,
-		    STACKSEGLABEL) == 0) {
+		label = MEM_Calloc(sizeof(STACKSEGLABEL)+1, MEM_PAGED);
+               strncpy(label, STACKSEGLABEL, sizeof(STACKSEGLABEL)+1);
+
+               if (strcmp((char *)pNode->dcdProps.objData.nodeObj.
+				     ndbProps.uStackSegName, label) == 0) {
 			status = hNodeMgr->nldrFxns.pfnGetFxnAddr(pNode->
 				 hNldrNode, "DYNEXT_BEG", &dynextBase);
 			if (DSP_FAILED(status)) {
@@ -739,6 +746,10 @@ func_cont2:
 				ulStackSegVal;
 
 		}
+
+		if (label)
+			MEM_Free(label);
+
 	}
 
 
@@ -772,15 +783,51 @@ func_cont2:
 	} else {
 		/* Cleanup */
 		if (pNode)
-			DeleteNode(pNode, pr_ctxt);
+			DeleteNode(pNode);
 
 	}
 
 #ifndef RES_CLEANUP_DISABLE
 	if (DSP_SUCCEEDED(status)) {
-		DRV_InsertNodeResElement(*phNode, &nodeRes, pr_ctxt);
-		DRV_ProcNodeUpdateHeapStatus(nodeRes, true);
-		DRV_ProcNodeUpdateStatus(nodeRes, true);
+               /* Return PID instead of process handle */
+               hProcess = current->group_leader->pid;
+
+		res_status = CFG_GetObject((u32 *)&hDrvObject,
+					  REG_DRV_OBJECT);
+		if (DSP_SUCCEEDED(res_status)) {
+                       DRV_GetProcContext(hProcess,
+					 (struct DRV_OBJECT *)hDrvObject,
+					 &pPctxt, *phNode, 0);
+			if (pPctxt == NULL) {
+				DRV_InsertProcContext(
+					(struct DRV_OBJECT *)hDrvObject,
+					&pPctxt);
+				if (pPctxt != NULL) {
+					DRV_ProcUpdatestate(pPctxt,
+							PROC_RES_ALLOCATED);
+                                       DRV_ProcSetPID(pPctxt, hProcess);
+					pPctxt->hProcessor =
+						 (DSP_HPROCESSOR)hProcessor;
+				}
+			}
+		}
+	}
+	if (DSP_SUCCEEDED(status)) {
+               /* Return PID instead of process handle */
+               hProcess = current->group_leader->pid;
+		res_status = CFG_GetObject((u32 *)&hDrvObject,
+					REG_DRV_OBJECT);
+		if (DSP_SUCCEEDED(res_status)) {
+                       DRV_GetProcContext(hProcess,
+					 (struct DRV_OBJECT *)hDrvObject,
+					 &pPctxt, *phNode, 0);
+			if (pPctxt != NULL) {
+				DRV_InsertNodeResElement(*phNode, &nodeRes,
+							 pPctxt);
+				DRV_ProcNodeUpdateHeapStatus(nodeRes, true);
+				DRV_ProcNodeUpdateStatus(nodeRes, true);
+			}
+		}
 	}
 #endif
 	DBC_Ensure((DSP_FAILED(status) && (*phNode == NULL)) ||
@@ -1276,6 +1323,7 @@ DSP_STATUS NODE_Create(struct NODE_OBJECT *hNode)
 	enum NODE_TYPE nodeType;
 	DSP_STATUS status = DSP_SOK;
 	DSP_STATUS status1 = DSP_SOK;
+	bool bJustWokeDSP = false;
 	struct DSP_CBDATA cbData;
 	u32 procId = 255;
 	struct DSP_PROCESSORSTATE procStatus;
@@ -1340,8 +1388,7 @@ DSP_STATUS NODE_Create(struct NODE_OBJECT *hNode)
 		/* Boost the OPP level to max level that DSP can be requested */
 #if defined(CONFIG_BRIDGE_DVFS) && !defined(CONFIG_CPU_FREQ)
 		if (pdata->cpu_set_freq) {
-			(*pdata->cpu_set_freq)(pdata->
-				mpu_rate_table[omap_pm_get_max_vdd1_opp()].rate);
+			(*pdata->cpu_set_freq)(pdata->mpu_speed[VDD1_OPP3]);
 
 			if (pdata->dsp_get_opp) {
 				GT_1trace(NODE_debugMask, GT_4CLASS, "opp level"
@@ -1367,7 +1414,7 @@ DSP_STATUS NODE_Create(struct NODE_OBJECT *hNode)
 		/* Request the lowest OPP level*/
 #if defined(CONFIG_BRIDGE_DVFS) && !defined(CONFIG_CPU_FREQ)
 		if (pdata->cpu_set_freq) {
-			(*pdata->cpu_set_freq)(pdata->mpu_rate_table[VDD1_OPP1].rate);
+			(*pdata->cpu_set_freq)(pdata->mpu_speed[VDD1_OPP1]);
 
 			if (pdata->dsp_get_opp) {
 				GT_1trace(NODE_debugMask, GT_4CLASS, "opp level"
@@ -1426,6 +1473,22 @@ func_cont2:
 	if (status != DSP_EWRONGSTATE) {
 		/* Put back in NODE_ALLOCATED state if error occurred */
 		NODE_SetState(hNode, NODE_ALLOCATED);
+	}
+	if (procId == DSP_UNIT) {
+		/* If node create failed, see if should sleep DSP now */
+		if (bJustWokeDSP == true) {
+			/* Check to see if partial create happened on DSP */
+			if (hNode->nodeEnv == (u32)NULL) {
+				/* No environment allocated on DSP, re-sleep
+				 * DSP now */
+				PROC_Ctrl(hNode->hProcessor, WMDIOCTL_DEEPSLEEP,
+					 &cbData);
+			} else {
+				/* Increment count, sleep later when node fully
+				 * deleted */
+				hNodeMgr->uNumCreated++;
+			}
+		}
 	}
 func_cont:
 		/* Free access to node dispatcher */
@@ -1584,8 +1647,7 @@ DSP_STATUS NODE_CreateMgr(OUT struct NODE_MGR **phNodeMgr,
  *      Loads the node's delete function if necessary. Free GPP side resources
  *      after node's delete function returns.
  */
-DSP_STATUS NODE_Delete(struct NODE_OBJECT *hNode,
-		struct PROCESS_CONTEXT *pr_ctxt)
+DSP_STATUS NODE_Delete(struct NODE_OBJECT *hNode)
 {
 	struct NODE_OBJECT *pNode = (struct NODE_OBJECT *)hNode;
 	struct NODE_MGR *hNodeMgr;
@@ -1601,7 +1663,11 @@ DSP_STATUS NODE_Delete(struct NODE_OBJECT *hNode,
 	struct WMD_DRV_INTERFACE *pIntfFxns;
 
 #ifndef RES_CLEANUP_DISABLE
+       u32                     hProcess;
 	HANDLE		nodeRes;
+	HANDLE		hDrvObject;
+	struct PROCESS_CONTEXT *pCtxt = NULL;
+	DSP_STATUS res_status = DSP_SOK;
 #endif
 	struct DSP_PROCESSORSTATE procStatus;
 	DBC_Require(cRefs > 0);
@@ -1727,20 +1793,27 @@ func_cont1:
 	 /*  Free host-side resources allocated by NODE_Create()
 	 *  DeleteNode() fails if SM buffers not freed by client!  */
 #ifndef RES_CLEANUP_DISABLE
-	if (!pr_ctxt)
+       /* Return PID instead of process handle */
+       hProcess = current->pid;
+	res_status = CFG_GetObject((u32 *)&hDrvObject, REG_DRV_OBJECT);
+	if (DSP_FAILED(res_status))
 		goto func_cont;
-	if (DRV_GetNodeResElement(hNode, &nodeRes, pr_ctxt) != DSP_ENOTFOUND) {
+	DRV_GetProcContext(0, (struct DRV_OBJECT *)hDrvObject,
+						&pCtxt, hNode, 0);
+	if (pCtxt == NULL)
+		goto func_cont;
+	if (DRV_GetNodeResElement(hNode, &nodeRes, pCtxt) != DSP_ENOTFOUND) {
 		GT_0trace(NODE_debugMask, GT_5CLASS, "\nNODE_Delete12:\n");
 		DRV_ProcNodeUpdateStatus(nodeRes, false);
 	}
 #endif
 func_cont:
 	GT_0trace(NODE_debugMask, GT_ENTER, "\nNODE_Delete13:\n ");
-	DeleteNode(hNode, pr_ctxt);
+	DeleteNode(hNode);
 #ifndef RES_CLEANUP_DISABLE
 	GT_0trace(NODE_debugMask, GT_5CLASS, "\nNODE_Delete2:\n ");
-	if (pr_ctxt)
-		DRV_RemoveNodeResElement(nodeRes, pr_ctxt);
+	if (pCtxt != NULL)
+		DRV_RemoveNodeResElement(nodeRes, (HANDLE)pCtxt);
 #endif
 	GT_0trace(NODE_debugMask, GT_ENTER, "\nNODE_Delete3:\n ");
 	/* Exit critical section */
@@ -1760,13 +1833,11 @@ DSP_STATUS NODE_DeleteMgr(struct NODE_MGR *hNodeMgr)
 	DSP_STATUS status = DSP_SOK;
 
 	DBC_Require(cRefs > 0);
+	DBC_Require(MEM_IsValidHandle(hNodeMgr, NODEMGR_SIGNATURE));
 
 	GT_1trace(NODE_debugMask, GT_ENTER, "NODE_DeleteMgr: hNodeMgr: 0x%x\n",
 		 hNodeMgr);
-	if (MEM_IsValidHandle(hNodeMgr, NODEMGR_SIGNATURE))
-		DeleteNodeMgr(hNodeMgr);
-	else
-		status = DSP_EHANDLE;
+	DeleteNodeMgr(hNodeMgr);
 
 	return status;
 }
@@ -1784,6 +1855,7 @@ DSP_STATUS NODE_EnumNodes(struct NODE_MGR *hNodeMgr, IN DSP_HNODE *aNodeTab,
 	u32 i;
 	DSP_STATUS status = DSP_SOK;
 	DBC_Require(cRefs > 0);
+	DBC_Require(MEM_IsValidHandle(hNodeMgr, NODEMGR_SIGNATURE));
 	DBC_Require(aNodeTab != NULL || uNodeTabSize == 0);
 	DBC_Require(puNumNodes != NULL);
 	DBC_Require(puAllocated != NULL);
@@ -1791,10 +1863,6 @@ DSP_STATUS NODE_EnumNodes(struct NODE_MGR *hNodeMgr, IN DSP_HNODE *aNodeTab,
 		 "aNodeTab: %d\tuNodeTabSize: 0x%x\tpuNumNodes: 0x%x\t"
 		 "puAllocated\n", hNodeMgr, aNodeTab, uNodeTabSize, puNumNodes,
 		 puAllocated);
-	if (!MEM_IsValidHandle(hNodeMgr, NODEMGR_SIGNATURE)) {
-		status = DSP_EHANDLE;
-		goto func_end;
-	}
 	/* Enter critical section */
 	status = SYNC_EnterCS(hNodeMgr->hSync);
 	if (DSP_SUCCEEDED(status)) {
@@ -1819,7 +1887,6 @@ DSP_STATUS NODE_EnumNodes(struct NODE_MGR *hNodeMgr, IN DSP_HNODE *aNodeTab,
 	/* end of SYNC_EnterCS */
 	/* Exit critical section */
 	(void)SYNC_LeaveCS(hNodeMgr->hSync);
-func_end:
 	return status;
 }
 
@@ -2195,9 +2262,7 @@ bool NODE_Init(void)
  */
 void NODE_OnExit(struct NODE_OBJECT *hNode, s32 nStatus)
 {
-	if (!MEM_IsValidHandle(hNode, NODE_SIGNATURE)) {
-		return;
-	}
+	DBC_Assert(MEM_IsValidHandle(hNode, NODE_SIGNATURE));
 	/* Set node state to done */
 	NODE_SetState(hNode, NODE_DONE);
 	hNode->nExitStatus = nStatus;
@@ -2511,10 +2576,6 @@ DSP_STATUS NODE_Run(struct NODE_OBJECT *hNode)
 		goto func_end;
 
 	hNodeMgr = hNode->hNodeMgr;
-	if (!MEM_IsValidHandle(hNodeMgr, NODEMGR_SIGNATURE)) {
-		status = DSP_EHANDLE;
-		goto func_end;
-	}
 	pIntfFxns = hNodeMgr->pIntfFxns;
 	/* Enter critical section */
 	status = SYNC_EnterCS(hNodeMgr->hSync);
@@ -2748,8 +2809,7 @@ func_end:
  *  Purpose:
  *      Free GPP resources allocated in NODE_Allocate() or NODE_Connect().
  */
-static void DeleteNode(struct NODE_OBJECT *hNode,
-		struct PROCESS_CONTEXT *pr_ctxt)
+static void DeleteNode(struct NODE_OBJECT *hNode)
 {
 	struct NODE_MGR *hNodeMgr;
 	struct CMM_XLATOROBJECT *hXlator;
@@ -2765,11 +2825,10 @@ static void DeleteNode(struct NODE_OBJECT *hNode,
 			(struct PROC_OBJECT *)hNode->hProcessor;
 #endif
 	DSP_STATUS status;
-	if (!MEM_IsValidHandle(hNode, NODE_SIGNATURE))
-		goto func_end;
+	DBC_Require(MEM_IsValidHandle(hNode, NODE_SIGNATURE));
 	hNodeMgr = hNode->hNodeMgr;
-	if (!MEM_IsValidHandle(hNodeMgr, NODEMGR_SIGNATURE))
-		goto func_end;
+       if (!MEM_IsValidHandle(hNodeMgr, NODEMGR_SIGNATURE))
+               return;
 	hXlator = hNode->hXlator;
 	nodeType = NODE_GetType(hNode);
 	if (nodeType != NODE_DEVICE) {
@@ -2829,8 +2888,7 @@ static void DeleteNode(struct NODE_OBJECT *hNode,
 		}
 		if (taskArgs.uDSPHeapResAddr) {
 			status = PROC_UnMap(hNode->hProcessor,
-					   (void *)taskArgs.uDSPHeapAddr,
-					   pr_ctxt);
+					   (void *)taskArgs.uDSPHeapAddr);
 			if (DSP_SUCCEEDED(status)) {
 				GT_0trace(NODE_debugMask, GT_5CLASS,
 					 "DSPProcessor_UnMap succeeded.\n");
@@ -2905,11 +2963,9 @@ static void DeleteNode(struct NODE_OBJECT *hNode,
 		hNodeMgr->nldrFxns.pfnFree(hNode->hNldrNode);
                hNode->hNldrNode = NULL;
        }
-	hNode->hNodeMgr = NULL;
+
 	MEM_FreeObject(hNode);
-	hNode = NULL;
-func_end:
-	return;
+       hNode = NULL;
 }
 
 /*
@@ -2931,7 +2987,7 @@ static void DeleteNodeMgr(struct NODE_MGR *hNodeMgr)
 			while ((hNode =
 				(struct NODE_OBJECT *)LST_GetHead(hNodeMgr->
 				nodeList)))
-					DeleteNode(hNode, NULL);
+					DeleteNode(hNode);
 
 			DBC_Assert(LST_IsEmpty(hNodeMgr->nodeList));
 			LST_Delete(hNodeMgr->nodeList);

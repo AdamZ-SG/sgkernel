@@ -91,6 +91,7 @@
 
 #ifndef RES_CLEANUP_DISABLE
 #include <dspbridge/cfg.h>
+#include <dspbridge/dbreg.h>
 #include <dspbridge/resourcecleanup.h>
 #endif
 
@@ -153,15 +154,18 @@ static void DeleteStrmMgr(struct STRM_MGR *hStrmMgr);
  *      Allocates buffers for a stream.
  */
 DSP_STATUS STRM_AllocateBuffer(struct STRM_OBJECT *hStrm, u32 uSize,
-				OUT u8 **apBuffer, u32 uNumBufs,
-				struct PROCESS_CONTEXT *pr_ctxt)
+				OUT u8 **apBuffer, u32 uNumBufs)
 {
 	DSP_STATUS status = DSP_SOK;
 	u32 uAllocated = 0;
 	u32 i;
-#ifndef RES_CLEANUP_DISABLE
+	#ifndef RES_CLEANUP_DISABLE
+	DSP_STATUS res_status = DSP_SOK;
+       u32                  hProcess;
+	HANDLE	     pCtxt = NULL;
+	HANDLE	     hDrvObject;
 	HANDLE hSTRMRes;
-#endif
+	#endif
 	DBC_Require(cRefs > 0);
 	DBC_Require(apBuffer != NULL);
 
@@ -193,15 +197,27 @@ DSP_STATUS STRM_AllocateBuffer(struct STRM_OBJECT *hStrm, u32 uSize,
 		}
 	}
 	if (DSP_FAILED(status))
-		STRM_FreeBuffer(hStrm, apBuffer, uAllocated, pr_ctxt);
+		STRM_FreeBuffer(hStrm, apBuffer, uAllocated);
 
 #ifndef RES_CLEANUP_DISABLE
 	if (DSP_FAILED(status))
 		goto func_end;
 
-	if (DRV_GetSTRMResElement(hStrm, &hSTRMRes, pr_ctxt) !=
-			DSP_ENOTFOUND)
-		DRV_ProcUpdateSTRMRes(uNumBufs, hSTRMRes, pr_ctxt);
+       /* Return PID instead of process handle */
+       hProcess = current->pid;
+
+	res_status = CFG_GetObject((u32 *)&hDrvObject, REG_DRV_OBJECT);
+	if (DSP_FAILED(res_status))
+		goto func_end;
+
+       DRV_GetProcContext(hProcess, (struct DRV_OBJECT *)hDrvObject,
+			 &pCtxt, NULL, 0);
+	if (pCtxt != NULL) {
+		if (DRV_GetSTRMResElement(hStrm, &hSTRMRes, pCtxt) !=
+		   DSP_ENOTFOUND) {
+			DRV_ProcUpdateSTRMRes(uNumBufs, hSTRMRes, pCtxt);
+		}
+	}
 #endif
 func_end:
 	return status;
@@ -212,16 +228,21 @@ func_end:
  *  Purpose:
  *      Close a stream opened with STRM_Open().
  */
-DSP_STATUS STRM_Close(struct STRM_OBJECT *hStrm,
-		struct PROCESS_CONTEXT *pr_ctxt)
+DSP_STATUS STRM_Close(struct STRM_OBJECT *hStrm)
 {
 	struct WMD_DRV_INTERFACE *pIntfFxns;
 	struct CHNL_INFO chnlInfo;
 	DSP_STATUS status = DSP_SOK;
 
+
 #ifndef RES_CLEANUP_DISABLE
+    u32                      hProcess;
+    HANDLE	      pCtxt = NULL;
+    HANDLE	      hDrvObject;
     HANDLE	      hSTRMRes;
+    DSP_STATUS	  res_status = DSP_SOK;
 #endif
+
 
 	DBC_Require(cRefs > 0);
 
@@ -255,9 +276,22 @@ DSP_STATUS STRM_Close(struct STRM_OBJECT *hStrm,
 	if (DSP_FAILED(status))
 		goto func_end;
 
-	if (DRV_GetSTRMResElement(hStrm, &hSTRMRes, pr_ctxt) !=
-			DSP_ENOTFOUND)
-		DRV_ProcRemoveSTRMResElement(hSTRMRes, pr_ctxt);
+	/* Update the node and stream resource status */
+       /* Return PID instead of process handle */
+       hProcess = current->pid;
+
+	res_status = CFG_GetObject((u32 *)&hDrvObject, REG_DRV_OBJECT);
+	if (DSP_FAILED(res_status))
+		goto func_end;
+
+       DRV_GetProcContext(hProcess, (struct DRV_OBJECT *)hDrvObject,
+			 &pCtxt, NULL, 0);
+	if (pCtxt != NULL) {
+		if (DRV_GetSTRMResElement(hStrm, &hSTRMRes, pCtxt) !=
+		   DSP_ENOTFOUND) {
+			DRV_ProcRemoveSTRMResElement(hSTRMRes, pCtxt);
+		}
+	}
 func_end:
 #endif
 	DBC_Ensure(status == DSP_SOK || status == DSP_EHANDLE ||
@@ -360,14 +394,18 @@ void STRM_Exit(void)
  *      Frees the buffers allocated for a stream.
  */
 DSP_STATUS STRM_FreeBuffer(struct STRM_OBJECT *hStrm, u8 **apBuffer,
-		u32 uNumBufs, struct PROCESS_CONTEXT *pr_ctxt)
+			  u32 uNumBufs)
 {
 	DSP_STATUS status = DSP_SOK;
 	u32 i = 0;
 
-#ifndef RES_CLEANUP_DISABLE
-	HANDLE hSTRMRes = NULL;
-#endif
+	#ifndef RES_CLEANUP_DISABLE
+	DSP_STATUS res_status = DSP_SOK;
+       u32                  hProcess;
+	HANDLE	     pCtxt = NULL;
+	HANDLE	     hDrvObject;
+	HANDLE 		    hSTRMRes = NULL;
+	#endif
 	DBC_Require(cRefs > 0);
 	DBC_Require(apBuffer != NULL);
 
@@ -391,9 +429,23 @@ DSP_STATUS STRM_FreeBuffer(struct STRM_OBJECT *hStrm, u8 **apBuffer,
 		}
 	}
 #ifndef RES_CLEANUP_DISABLE
-	if (DRV_GetSTRMResElement(hStrm, hSTRMRes, pr_ctxt) !=
-			DSP_ENOTFOUND)
-		DRV_ProcUpdateSTRMRes(uNumBufs-i, hSTRMRes, pr_ctxt);
+	/* Update the node and stream resource status */
+       /* Return PID instead of process handle */
+       hProcess = current->pid;
+
+	res_status = CFG_GetObject((u32 *)&hDrvObject, REG_DRV_OBJECT);
+	if (DSP_SUCCEEDED(res_status)) {
+               DRV_GetProcContext(hProcess,
+				 (struct DRV_OBJECT *)hDrvObject, &pCtxt,
+				 NULL, 0);
+		if (pCtxt != NULL) {
+			if (DRV_GetSTRMResElement(hStrm, hSTRMRes, pCtxt) !=
+			   DSP_ENOTFOUND) {
+				DRV_ProcUpdateSTRMRes(uNumBufs-i, hSTRMRes,
+						     pCtxt);
+			}
+		}
+	}
 #endif
 	return status;
 }
@@ -574,9 +626,7 @@ DSP_STATUS STRM_Issue(struct STRM_OBJECT *hStrm, IN u8 *pBuf, u32 ulBytes,
  *      XDAIS socket node on the DSP.
  */
 DSP_STATUS STRM_Open(struct NODE_OBJECT *hNode, u32 uDir, u32 uIndex,
-		IN struct STRM_ATTR *pAttr,
-		OUT struct STRM_OBJECT **phStrm,
-		struct PROCESS_CONTEXT *pr_ctxt)
+		    IN struct STRM_ATTR *pAttr, OUT struct STRM_OBJECT **phStrm)
 {
 	struct STRM_MGR *hStrmMgr;
 	struct WMD_DRV_INTERFACE *pIntfFxns;
@@ -587,9 +637,13 @@ DSP_STATUS STRM_Open(struct NODE_OBJECT *hNode, u32 uDir, u32 uIndex,
 	DSP_STATUS status = DSP_SOK;
 	struct CMM_OBJECT *hCmmMgr = NULL;	/* Shared memory manager hndl */
 
-#ifndef RES_CLEANUP_DISABLE
-	HANDLE hSTRMRes;
-#endif
+	#ifndef RES_CLEANUP_DISABLE
+	DSP_STATUS res_status = DSP_SOK;
+       u32                  hProcess;
+	HANDLE	     pCtxt = NULL;
+	HANDLE	     hDrvObject;
+	HANDLE 		    hSTRMRes;
+	#endif
 	DBC_Require(cRefs > 0);
 	DBC_Require(phStrm != NULL);
 	DBC_Require(pAttr != NULL);
@@ -725,7 +779,18 @@ func_cont:
 		(void)DeleteStrm(pStrm);
 
 #ifndef RES_CLEANUP_DISABLE
-	DRV_ProcInsertSTRMResElement(*phStrm, &hSTRMRes, pr_ctxt);
+       /* Return PID instead of process handle */
+       hProcess = current->pid;
+
+	res_status = CFG_GetObject((u32 *)&hDrvObject, REG_DRV_OBJECT);
+	if (DSP_SUCCEEDED(res_status)) {
+               DRV_GetProcContext(hProcess,
+				 (struct DRV_OBJECT *)hDrvObject, &pCtxt,
+				 hNode, 0);
+		if (pCtxt != NULL)
+			DRV_ProcInsertSTRMResElement(*phStrm, &hSTRMRes, pCtxt);
+
+	}
 #endif
 
 	 /* ensure we return a documented error code */

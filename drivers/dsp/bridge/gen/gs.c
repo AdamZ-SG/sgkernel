@@ -101,6 +101,8 @@ void GS_init(void)
 	static bool curInit;
 
 	if (curInit == false) {
-		curInit = MEM_Init(); /* which can't fail currently. */
+		curInit = true;
+
+		MEM_Init();
 	}
 }
