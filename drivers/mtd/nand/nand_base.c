@@ -711,10 +711,11 @@ static int nand_wait(struct mtd_info *mtd, struct nand_chip *chip)
 	unsigned long timeo = jiffies;
 	int status, state = chip->state;
 
-	if (state == FL_ERASING)
+	if (state == FL_ERASING) {
 		timeo += (HZ * 400) / 1000;
-	else
+	} else {
 		timeo += (HZ * 20) / 1000;
+	}
 
 	led_trigger_event(nand_led_trigger, LED_FULL);
 
@@ -722,11 +723,13 @@ static int nand_wait(struct mtd_info *mtd, struct nand_chip *chip)
 	 * any case on any machine. */
 	ndelay(100);
 
-	if (!(chip->dev_ready))
-		if ((state == FL_ERASING) && (chip->options & NAND_IS_AND))
+	if (!(chip->dev_ready)) {
+		if ((state == FL_ERASING) && (chip->options & NAND_IS_AND)) {
 			chip->cmdfunc(mtd, NAND_CMD_STATUS_MULTI, -1, -1);
-		else
+		} else {
 			chip->cmdfunc(mtd, NAND_CMD_STATUS, -1, -1);
+		}
+	}
 
 	while (time_before(jiffies, timeo)) {
 		if (chip->dev_ready) {
