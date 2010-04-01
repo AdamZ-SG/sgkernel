@@ -164,10 +164,15 @@ config MACH_SHOLES_UMTS
         bool "Motorola sholes umts"
         depends on MACH_SHOLES
 
+menu "Motorola Sholes Overclocking"
+
+comment "Motorola Sholes Overclocking options"
+	depends on MACH_SHOLES
+
 choice
 
-	prompt "SG Overclocking - OPP Slots"
-	default "MACH_SHOLES_OPP5"
+	prompt "Number of OPP Slots"
+	default MACH_SHOLES_OPP5
 	depends on MACH_SHOLES
 	help
 	  Choose the number OPP Registry slots to use.  Five is stock, with the fifth 
@@ -176,7 +181,7 @@ choice
 	  Use "Seven Processor Slots" at your own risk!
 
 config MACH_SHOLES_OPP5
-	bool "Five Processor Slots
+	bool "Five Processor Slots"
 
 config MACH_SHOLES_OPP7
 	bool "Seven Processor Slots"
@@ -184,11 +189,12 @@ config MACH_SHOLES_OPP7
 endchoice
 
 choice
-	prompt "SG Overclocking - Processor Speed/Voltage"
+	prompt "OPP Speed and VSEL options"
 	default MACH_SHOLES_CLOCK_STOCK
 	depends on MACH_SHOLES && (MACH_SHOLES_OPP5 || MACH_SHOLES_OPP7)
 	help
-	  Choose your Processor Speed and Voltage Range.
+	  Choose your Processor Speed and VSEL Range.  Each selection will work with 
+	  either choice of OPP slots.
 
 config MACH_SHOLES_CLOCK_STOCK
 	bool "Stock 125-600 MHz"
@@ -248,6 +254,8 @@ config MACH_SHOLES_CLOCK_1300HV
 	bool "Overclock 250-1300 MHz - High"
 
 endchoice
+
+endmenu
 
 config MACH_OVERO
 	bool "Gumstix Overo board"
