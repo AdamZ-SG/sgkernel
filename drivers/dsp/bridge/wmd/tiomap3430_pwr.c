@@ -67,7 +67,7 @@
 #include <mach-omap2/cm-regbits-34xx.h>
 
 #ifdef CONFIG_PM
-#include <mach/board-3430sdp.h>
+/* XXX #include <plat/board-3430sdp.h> */
 #endif
 extern struct MAILBOX_CONTEXT mboxsetting;
 extern unsigned short enable_off_mode;

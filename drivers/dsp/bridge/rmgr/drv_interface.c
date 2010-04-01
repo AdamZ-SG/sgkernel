@@ -59,7 +59,9 @@
 #include <linux/moduleparam.h>
 #include <linux/cdev.h>
 
+/* XXX
 #include <mach/board-3430sdp.h>
+*/
 
 /*  ----------------------------------- DSP/BIOS Bridge */
 #include <dspbridge/std.h>
@@ -244,10 +246,13 @@ u32 vdd1_dsp_freq[6][4] = {
 };
 
 #ifdef CONFIG_BRIDGE_DVFS
-static int dspbridge_post_scale(struct notifier_block *op, unsigned long level,
+static int dspbridge_post_scale(struct notifier_block *op, unsigned long val,
 				void *ptr)
 {
-	PWR_PM_PostScale(PRCM_VDD1, level);
+	struct dspbridge_platform_data *pdata =
+		omap_dspbridge_dev->dev.platform_data;
+	if (CPUFREQ_POSTCHANGE == val && pdata->dsp_get_opp)
+		PWR_PM_PostScale(PRCM_VDD1, pdata->dsp_get_opp());
 	return 0;
 }
 
@@ -299,7 +304,6 @@ static int __devinit omap34xx_bridge_probe(struct platform_device *pdev)
 	memset(bridge_device, 0, sizeof(struct bridge_dev));
 	cdev_init(&bridge_device->cdev, &bridge_fops);
 	bridge_device->cdev.owner = THIS_MODULE;
-	bridge_device->cdev.ops = &bridge_fops;
 
 	status = cdev_add(&bridge_device->cdev, dev, 1);
 
@@ -416,7 +420,8 @@ static int __devinit omap34xx_bridge_probe(struct platform_device *pdev)
 			GT_0trace(driverTrace, GT_7CLASS,
 			"clk_get PASS to get iva2_ck \n");
 		}
-		if (!clk_notifier_register(clk_handle, &iva_clk_notifier)) {
+		if (!cpufreq_register_notifier(&iva_clk_notifier,
+					       CPUFREQ_TRANSITION_NOTIFIER)) {
 			GT_0trace(driverTrace, GT_7CLASS,
 			"clk_notifier_register PASS for iva2_ck \n");
 		} else {
@@ -479,7 +484,9 @@ func_cont:
 	GT_exit();
 	/* unregister the clock notifier */
 #ifdef CONFIG_BRIDGE_DVFS
-	if (!clk_notifier_unregister(clk_handle, &iva_clk_notifier)) {
+	if (!cpufreq_unregister_notifier(&iva_clk_notifier,
+					 CPUFREQ_TRANSITION_NOTIFIER)) {
+
 		GT_0trace(driverTrace, GT_7CLASS,
 		"clk_notifier_unregister PASS for iva2_ck \n");
 	} else {
@@ -791,10 +798,11 @@ static long bridge_ioctl(struct file *filp, unsigned int code,
 	GT_0trace(driverTrace, GT_ENTER, " -> driver_ioctl\n");
 
 	/* Deduct one for the CMD_BASE. */
-	code = (code - 1);
+	code = (code - CMD_BASE);
 
 	status = copy_from_user(&pBufIn, (union Trapped_Args *)args,
 				sizeof(union Trapped_Args));
+
 
 	if (status >= 0) {
 		status = WCD_CallDevIOCtl(code, &pBufIn, &retval);
