@@ -44,6 +44,7 @@
 #include <mach/gpmc.h>
 #include <mach/dma.h>
 #include <mach/dmtimer.h>
+#include <mach/omap-pm.h>
 
 #include <asm/tlbflush.h>
 
