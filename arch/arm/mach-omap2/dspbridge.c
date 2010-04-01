@@ -13,9 +13,7 @@
 
 #include <linux/platform_device.h>
 
-#ifdef CONFIG_BRIDGE_DVFS
 #include <mach/omap-pm.h>
-#endif
 
 #include <dspbridge/host_os.h>
 
